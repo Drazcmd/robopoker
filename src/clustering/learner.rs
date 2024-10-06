@@ -43,14 +43,6 @@ impl Hierarchical {
             .inner() // flop
             .save();
     }
-    /// if we have this full thing created we can also just retrieve it
-    pub fn retrieve() -> Abstractor {
-        log::info!("retrieving abstraction lookup table");
-        let mut map = BTreeMap::default();
-        map.extend(Self::load(Street::Turn).0);
-        map.extend(Self::load(Street::Flop).0);
-        Abstractor(map)
-    }
 
     /// start with the River layer. everything is empty because we
     /// can generate `Abstractor` and `SmallSpace` from "scratch".
@@ -325,7 +317,7 @@ impl Hierarchical {
     /// 6. Read abstraction (8 bytes)
     /// 7. Insert observation and abstraction into lookup table
     /// 8. Repeat until end of file
-    fn load(street: Street) -> Abstractor {
+    pub fn load(street: Street) -> Abstractor {
         log::info!("downloading abstraction lookup table {}", street);
         use byteorder::BigEndian;
         use byteorder::ReadBytesExt;
