@@ -1,6 +1,7 @@
 use super::abstractor::Abstractor;
 use super::datasets::AbstractionSpace;
 use super::datasets::ObservationSpace;
+use crate::cards::isomorphism::Isomorphism;
 use crate::cards::observation::Observation;
 use crate::cards::street::Street;
 use crate::clustering::abstraction::Abstraction;
@@ -16,9 +17,6 @@ use rayon::iter::IntoParallelIterator;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
 use std::collections::BTreeMap;
-use std::time::Duration;
-
-use indicatif::{ProgressBar, ProgressStyle};
 
 /// Hierarchical K Means Learner
 /// this is decomposed into the necessary data structures
@@ -105,7 +103,6 @@ impl Layer {
         metric.insert(Pair::default(), 0.); // matrix diagonal is zero
         Metric(metric)
     }
-
     /// using the current layer's `Abstractor`,
     /// we generate the `LargeSpace` of `Observation` -> `Histogram`.
     /// 1. take all `Observation`s for `self.street.prev()`
@@ -114,23 +111,14 @@ impl Layer {
     /// 4. collect `Abstraction`s into a `Histogram`, for each `Observation`
     fn inner_points(&self) -> ObservationSpace {
         log::info!("computing projections {}", self.street);
-        let exhausted = Observation::exhaust(self.street.prev());
-
-        let pb = ProgressBar::new(exhausted.len() as u64);
-        pb.set_style(
-            ProgressStyle::with_template(
-                "[{elapsed_precise}] {spinner:.green} {wide_bar} ETA {eta_precise}",
-            )
-            .unwrap(),
-        );
-        pb.enable_steady_tick(Duration::from_millis(100));
-
         ObservationSpace(
-            exhausted
+            Observation::exhaust(self.street.prev())
+                .filter(|o| Isomorphism::is_canonical(o))
+                .map(|o| Isomorphism::from(o)) // isomorphism translation
+                .collect::<Vec<Isomorphism>>() // isomorphism translation
                 .into_par_iter()
                 .map(|inner| (inner, self.lookup.projection(&inner)))
-                .inspect(|_| pb.inc(1))
-                .collect::<BTreeMap<Observation, Histogram>>(),
+                .collect::<BTreeMap<Isomorphism, Histogram>>(),
         )
     }
 
