@@ -102,6 +102,7 @@ impl Layer {
                 }
             }
         }
+        metric.insert(Pair::default(), 0.); // matrix diagonal is zero
         Metric(metric)
     }
 
