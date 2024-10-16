@@ -8,6 +8,8 @@ use crate::clustering::abstraction::Abstraction;
 use crate::clustering::histogram::Histogram;
 use crate::clustering::metric::Metric;
 use crate::clustering::xor::Pair;
+use indicatif::ProgressBar;
+use indicatif::ProgressStyle;
 use rand::distributions::Distribution;
 use rand::distributions::WeightedIndex;
 use rand::rngs::StdRng;
@@ -43,6 +45,10 @@ impl Layer {
                                                                 // add the abstraction-less PreFlop Observations
                                                                 // or include a Abstraction::PreFlop(Hole) variant
                                                                 // to make sure we cover the full set of Observations
+                                                                // this might be better off to do in Explorer::load() perhaps
+                                                                // or we could add one more .inner().save() call with
+                                                                // special Preflop logic to not actually do any clustering
+                                                                // i.e. k = 169, t = 0
     }
 
     /// start with the River layer. everything is empty because we
@@ -77,7 +83,7 @@ impl Layer {
     /// simply go to the previous street
     fn inner_street(&self) -> Street {
         log::info!(
-            "advancing street from {} to {}",
+            "advancing street from {} -> {}",
             self.street,
             self.street.prev()
         );
@@ -91,7 +97,7 @@ impl Layer {
     /// the distnace isn't symmetric in the first place only because our heuristic algo is not fully accurate
     fn inner_metric(&self) -> Metric {
         log::info!(
-            "computing metric from {} to {}",
+            "computing metric from {} -> {}",
             self.street,
             self.street.prev()
         );
@@ -119,65 +125,95 @@ impl Layer {
     /// 4. collect `Abstraction`s into a `Histogram`, for each `Observation`
     fn inner_points(&self) -> ObservationSpace {
         log::info!(
-            "computing projections from {} to {}",
+            "computing projections from {} -> {}",
             self.street,
             self.street.prev()
         );
-        ObservationSpace(
+        // pretty progress
+        let n = self.street.prev().n_isomorphisms();
+        let tick = std::time::Duration::from_secs(1);
+        let style = "[{elapsed}] {spinner:.green} {wide_bar:.green} ETA {eta}";
+        let style = ProgressStyle::with_template(style).unwrap();
+        let progress = ProgressBar::new(n as u64);
+        progress.set_style(style);
+        progress.enable_steady_tick(tick);
+        //
+        let points = ObservationSpace(
             Observation::exhaust(self.street.prev())
                 .filter(|o| Isomorphism::is_canonical(o))
                 .map(|o| Isomorphism::from(o)) // isomorphism translation
                 .collect::<Vec<Isomorphism>>() // isomorphism translation
                 .into_par_iter()
                 .map(|inner| (inner, self.lookup.projection(&inner)))
+                .inspect(|_| progress.inc(1))
                 .collect::<BTreeMap<Isomorphism, Histogram>>(),
-        )
+        );
+        //
+        progress.finish();
+        points
     }
 
     /// initializes the centroids for k-means clustering using the k-means++ algorithm
     /// 1. choose 1st centroid randomly from the dataset
     /// 2. choose nth centroid with probability proportional to squared distance of nearest neighbors
     /// 3. collect histograms and label with arbitrary (random) `Abstraction`s
-    ///
-    /// if this becomes a bottleneck with contention,
-    /// consider partitioning dataset or using lock-free data structures.
     fn initial(&mut self) {
         log::info!("initializing kmeans {}", self.street);
+        // pretty progress
+        let n = self.k() - 1;
+        let tick = std::time::Duration::from_secs(1);
+        let style = "[{elapsed}] {spinner:.green} {wide_bar:.green} ETA {eta}";
+        let style = ProgressStyle::with_template(style).unwrap();
+        let progress = ProgressBar::new(n as u64);
+        progress.set_style(style);
+        progress.enable_steady_tick(tick);
+        //
         let ref mut rng = rand::rngs::StdRng::seed_from_u64(self.street as u64);
         let histogram = self.sample_uniform(rng);
         self.kmeans.expand(histogram);
         while self.k() > self.l() {
-            log::info!("add initial {}", self.l());
             let histogram = self.sample_outlier(rng);
             self.kmeans.expand(histogram);
+            progress.inc(1);
         }
+        //
+        progress.finish();
     }
     /// for however many iterations we want,
     /// 1. assign each `Observation` to the nearest `Centroid`
     /// 2. update each `Centroid` by averaging the `Observation`s assigned to it
-    ///
-    /// if this becomes a bottleneck with contention,
-    /// consider partitioning dataset or using lock-free data structures.
     fn cluster(&mut self) {
         log::info!("clustering kmeans {}", self.street);
-        for i in 0..self.t() {
-            log::info!("computing abstractions {} {}", self.street, i);
+        // pretty progress
+        assert!(self.points.0.len() == self.street.n_isomorphisms());
+        let n = self.t() * self.points.0.len();
+        let tick = std::time::Duration::from_secs(1);
+        let style = "[{elapsed}] {spinner:.green} {wide_bar:.green} ETA {eta}";
+        let style = ProgressStyle::with_template(style).unwrap();
+        let progress = ProgressBar::new(n as u64);
+        progress.set_style(style);
+        progress.enable_steady_tick(tick);
+        //
+        for _ in 0..self.t() {
             let abstractions = self
                 .points
                 .0
                 .par_iter()
                 .map(|(_, h)| self.nearest_neighbor(h))
+                .inspect(|_| progress.inc(1))
                 .collect::<Vec<Abstraction>>();
-            log::info!("assigning abstractions {} {}", self.street, i);
-            for ((o, h), a) in self.points.0.iter_mut().zip(abstractions.iter()) {
-                self.lookup.assign(a, o);
-                self.kmeans.absorb(a, h);
+            for ((observation, histogram), abstraction) in
+                self.points.0.iter_mut().zip(abstractions.iter())
+            {
+                self.lookup.assign(abstraction, observation);
+                self.kmeans.absorb(abstraction, histogram);
             }
-            log::info!("resetting abstractions {} {}", self.street, i);
             for (_, centroid) in self.kmeans.0.iter_mut() {
-                centroid.rotate();
+                centroid.reset();
             }
         }
+        //
+        progress.finish();
     }
 
     /// the first Centroid is uniformly random across all `Observation` `Histogram`s
@@ -237,15 +273,15 @@ impl Layer {
     /// hyperparameter: how many centroids to learn
     fn k(&self) -> usize {
         match self.street {
-            Street::Turn => 128,
-            Street::Flop => 128,
-            _ => unreachable!("how did you get here"),
+            Street::Turn => 64,
+            Street::Flop => 64,
+            _ => unreachable!("no other abstractable streets"),
         }
     }
     /// hyperparameter: how many iterations to run kmeans
     fn t(&self) -> usize {
         match self.street {
-            _ => 100,
+            _ => 10,
         }
     }
     /// length of current kmeans centroids
@@ -255,9 +291,8 @@ impl Layer {
 
     /// save the current layer's `Metric` and `Abstractor` to disk
     fn save(self) -> Self {
-        let path = format!("{}.abstraction.pgcopy", self.street);
-        self.metric.save(path.clone());
-        self.lookup.save(path.clone());
+        self.metric.save(format!("{}", self.street));
+        self.lookup.save(format!("{}", self.street));
         self
     }
 }
