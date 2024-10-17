@@ -8,7 +8,6 @@ use crate::clustering::abstraction::Abstraction;
 use crate::clustering::histogram::Histogram;
 use crate::clustering::metric::Metric;
 use crate::clustering::xor::Pair;
-use petgraph::algo::isomorphism;
 use rand::distributions::Distribution;
 use rand::distributions::WeightedIndex;
 use rand::rngs::StdRng;
