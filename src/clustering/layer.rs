@@ -54,6 +54,7 @@ impl Layer {
         log::info!("{:<32}{:<32}", "clustering  kmeans", self.street());
         let t = self.street().t();
         let progress = crate::progress(t);
+        let triangle_accelerate_todo_replaceme = false;
         for _ in 0..t {
             let ref mut next;
             if triangle_accelerate_todo_replaceme {
