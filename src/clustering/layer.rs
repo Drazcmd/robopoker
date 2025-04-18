@@ -55,7 +55,12 @@ impl Layer {
         let t = self.street().t();
         let progress = crate::progress(t);
         for _ in 0..t {
-            let ref mut next = self.next();
+            let ref mut next;
+            if triangle_accelerate_todo_replaceme {
+                next = self.next_kmeans_iteration2_accl();
+            } else {
+                next = self.next_kmeans_iteration();
+            }
             let ref mut last = self.kmeans;
             std::mem::swap(next, last);
             progress.inc(1);
@@ -124,7 +129,7 @@ impl Layer {
     /// calculates the next step of the kmeans iteration by
     /// determining K * N optimal transport calculations and
     /// taking the nearest neighbor
-    fn next(&self) -> Vec<Histogram> /* K */ {
+    fn next_kmeans_iteration(&self) -> Vec<Histogram> /* K */ {
         use rayon::iter::IntoParallelRefIterator;
         use rayon::iter::ParallelIterator;
         let k = self.street().k();
@@ -149,6 +154,25 @@ impl Layer {
             "abstraction cluster RMS error",
             (loss / self.points().len() as f32).sqrt()
         );
+        centroids
+    }
+
+    #[cfg(feature = "native")]
+    /// WIP triangle-accelerated version of the 'next' function.
+    /// Keep separate unless and until we've proven that this is
+    /// going to actually be faster AND still correct
+    ///
+    /// calculates the next step of the kmeans iteration by
+    /// determining up to K * N optimal transport calculations and
+    /// taking the nearest neighbor, using triangle inequalities
+    /// where possible to skip performing calculations
+    fn next_kmeans_iteration2_accl(&self) -> Vec<Histogram> /* K */ {
+        use rayon::iter::IntoParallelRefIterator;
+        use rayon::iter::ParallelIterator;
+        let k = self.street().k();
+        let mut loss = 0f32;
+        let mut centroids = vec![Histogram::default(); k];
+
         centroids
     }
 
