@@ -56,14 +56,15 @@ impl Layer {
         let progress = crate::progress(t);
         let triangle_accelerate_todo_replaceme = false;
         for _ in 0..t {
-            let ref mut next;
             if triangle_accelerate_todo_replaceme {
-                next = self.next_kmeans_iteration2_accl();
+                let ref mut next = self.next_kmeans_iteration2_accl();
+                let ref mut last = self.kmeans;
+                std::mem::swap(next, last);
             } else {
-                next = self.next_kmeans_iteration();
+                let ref mut next = self.next_kmeans_iteration();
+                let ref mut last = self.kmeans;
+                std::mem::swap(next, last);
             }
-            let ref mut last = self.kmeans;
-            std::mem::swap(next, last);
             progress.inc(1);
         }
         progress.finish();
