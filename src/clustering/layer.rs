@@ -219,6 +219,30 @@ impl Layer {
         let mut loss = 0f32;
         let mut centroids = vec![Histogram::default(); k];
 
+
+        // Update lower bounds. From paper: ""
+        // 5. For each point x and center c, assign
+        //    l(x,c) = max{ l(x, c) - d(c, m(c)), 0 }
+        // """
+        //
+
+        // Update upper bounds. From paper: """
+        //    u(x) = u(x) + d(m(c(x)), c(x))
+        //    r(x) = true
+        // """
+        // Notably, no need to mess with r(x) since we're
+        // already inside a loop that sets it
+        //
+        // ... this is kinda weird actually, since in the middle
+        // of the iteration we'll be messing with l and u...
+        // Both "each time d(x,c) is computed set l(x,c) = d(x,c)"
+        // and "u(x) ... may change during the executino of step(3)"
+        // it there or anywhere else so far...?)
+        //
+        // arguably it's kinda weird that we're passing it in
+        // and out of the function like this. Though, in practice
+        // I think is kinda nice to constrain the mutations a bit
+        // ... so maybe this is ok after all.
         (centroids, point_lower_bounds, point_upper_bounds)
     }
 
