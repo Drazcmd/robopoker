@@ -89,10 +89,11 @@ impl Layer {
                 // TODO I assume the extra clone() calls are probably not the right way to do this / are wasteful.
                 // ... or maybe not, maybe that's ok. Not sure actually! Need to go learn more about rust to know for certain
                 // what I'm 'meant' to be doing in cases like these....
-                let (ref mut next, point_lower_bounds, point_upper_bounds) = self.next_kmeans_iteration2_accl(
-                    point_lower_bounds.clone(),
-                    point_upper_bounds.clone(),
-                );
+                let (ref mut next, point_lower_bounds, point_upper_bounds) = self
+                    .next_kmeans_iteration2_accl(
+                        point_lower_bounds.clone(),
+                        point_upper_bounds.clone(),
+                    );
                 let ref mut last = self.kmeans;
                 std::mem::swap(next, last);
             } else {
@@ -219,7 +220,6 @@ impl Layer {
         let mut loss = 0f32;
         let mut centroids = vec![Histogram::default(); k];
 
-
         // Update lower bounds. From paper: ""
         // 5. For each point x and center c, assign
         //    l(x,c) = max{ l(x, c) - d(c, m(c)), 0 }
@@ -237,6 +237,7 @@ impl Layer {
         // of the iteration we'll be messing with l and u...
         // Both "each time d(x,c) is computed set l(x,c) = d(x,c)"
         // and "u(x) ... may change during the executino of step(3)"
+        // (which is itself weird, I don't see any references to updating
         // it there or anywhere else so far...?)
         //
         // arguably it's kinda weird that we're passing it in
