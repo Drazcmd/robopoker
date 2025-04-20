@@ -56,6 +56,11 @@ impl Layer {
         let progress = crate::progress(t);
         let triangle_accelerate_todo_replaceme = false;
 
+        // Effectively computing initial value for both c(x) and u(x) at the same time (closest initial center and
+        // the upper bound on distance to closest initial center. See below.)
+        let point_nearest_neighbors: Vec<Neighbor> =
+            self.points().iter().map(|x| self.neighborhood(x)).collect();
+
         // Helper vectors for using triangel inequalities to avoid unneeded distance computations.
         // TODO: clean up the  (which I'm writing mainly to help myself understand the code)
         // TODO: see if we can get a way to do the lookups for the points and centroids in a cleaner
@@ -78,17 +83,22 @@ impl Layer {
         // 1-D list of upper bounds on the distance from point x to its currently assinged centroid
         // Will be length n, where n is number of points.
         // Each value corresponds to the same-indexed Histogram in the points vector
-        let point_upper_bounds: Vec<f32> = self
-            .points()
-            .iter()
-            .map(|point| self.neighborhood(point).1)
-            .collect();
+        let point_upper_bounds: Vec<f32> = point_nearest_neighbors.iter().map(|x| x.1).collect();
+
+        // i.e. the index of the "nearest neighbor" centroid
+        let point_closet_centroid: Vec<usize> =
+            point_nearest_neighbors.iter().map(|x| x.0).collect();
 
         for _ in 0..t {
             if triangle_accelerate_todo_replaceme {
                 // TODO I assume the extra clone() calls are probably not the right way to do this / are wasteful.
                 // ... or maybe not, maybe that's ok. Not sure actually! Need to go learn more about rust to know for certain
                 // what I'm 'meant' to be doing in cases like these....
+
+                // NEED TO UPDATE THIS I THINK. Need to have a way where AT THE START
+                // we initialize "c(x)" mapping each point to its "closest initial center"
+                // so can't do it inside the function. Meaning should proabbly be yet another
+                // input we pass in like lower and upper vectors...
                 let (ref mut next, point_lower_bounds, point_upper_bounds) = self
                     .next_kmeans_iteration2_accl(
                         point_lower_bounds.clone(),
@@ -219,6 +229,9 @@ impl Layer {
         let k = self.street().k();
         let mut loss = 0f32;
         let mut centroids = vec![Histogram::default(); k];
+        // TODO CLEAN THIS UP. Currently copy pasted from other function
+
+        // Initialize 'c
 
         // Update lower bounds. From paper: ""
         // 5. For each point x and center c, assign
