@@ -19,21 +19,6 @@ pub struct Layer {
     metric: Metric,
     kmeans: Vec<Histogram>, // positioned by K-means abstraction
     points: Vec<Histogram>, // positioned by Isomorphism
-
-    // TODO: see if we can get a way to do the lookups for the points and centroids in a cleaner
-    // way than just indexing into the vectors at the same indices...
-    //
-    // Helper vectors for using triangel inequalities to avoid unneeded distance computations.
-    //
-    // 1-D list of upper bounds on the distance from point x to its currently assinged centroid
-    // Will be length n, where n is number of points.
-    // Each value corresponds to the same-indexed Histogram in the points vector
-    point_upper_bounds: Vec<int64>,
-    // 2-D list lower bounds on the distance from each point x to each centroid c
-    // Dimensions are [n][k] where n is number points and k is number of centroids.
-    // (The nested vectors each correspond to the same-indexed Histogram in the points vector
-    // Each value inside the nested vectors each correspond to the same-indexed centroid (k in total)
-    point_lower_bounds: Vec<Vec<int64>>,
 }
 
 impl Layer {
@@ -70,9 +55,33 @@ impl Layer {
         let t = self.street().t();
         let progress = crate::progress(t);
         let triangle_accelerate_todo_replaceme = false;
+
+        // Helper vectors for using triangel inequalities to avoid unneeded distance computations.
+        // TODO: clean up the  (which I'm writing mainly to help myself understand the code)
+        // TODO: see if we can get a way to do the lookups for the points and centroids in a cleaner
+        // way than just indexing into the vectors at the same indices...
+        //
+        // From the paper:
+        // "Set the lower bound l(x,c) = 0 for each point x and center c"
+        //
+        // 2-D list lower bounds on the distance from each point x to each centroid c
+        // Dimensions are [n][k] where n is number points and k is number of centroids.
+        // (The nested vectors each correspond to the same-indexed Histogram in the points vector
+        // Each value inside the nested vectors each correspond to the same-indexed centroid (k in total)
+        let point_lower_bounds: Vec<Vec<f32>> = vec![vec![0; self.kmeans.len] self.points.len];
+        // From the paper:
+        // "Assign upper bounds x(x) = min_c d(x,c)"
+        // (which by definition should be the distance to the currently assigned centroid... i.e. the
+        // 'nearest neighbor')
+        //
+        // 1-D list of upper bounds on the distance from point x to its currently assinged centroid
+        // Will be length n, where n is number of points.
+        // Each value corresponds to the same-indexed Histogram in the points vector
+        let point_upper_bounds: Vec<f32>;
+
         for _ in 0..t {
             if triangle_accelerate_todo_replaceme {
-                let ref mut next = self.next_kmeans_iteration2_accl();
+                let (ref mut next, lower, upper) = self.next_kmeans_iteration2_accl();
                 let ref mut last = self.kmeans;
                 std::mem::swap(next, last);
             } else {
@@ -103,6 +112,7 @@ impl Layer {
         // don't do any abstraction on preflop
         let k = self.street().k();
         let n = self.points().len();
+
         if self.street() == Street::Pref {
             assert!(n == k);
             return self.points().clone();
@@ -183,7 +193,13 @@ impl Layer {
     /// determining up to K * N optimal transport calculations and
     /// taking the nearest neighbor, using triangle inequalities
     /// where possible to skip performing calculations
-    fn next_kmeans_iteration2_accl(&self) -> Vec<Histogram> /* K */ {
+    fn next_kmeans_iteration2_accl(
+        &self,
+    ) -> (
+        Vec<Histogram>,  /* K */
+        Vec<int64>,      /* N upper bounds */
+        Vec<Vec<int64>>, /* K*N lower bounds */
+    ) {
         use rayon::iter::IntoParallelRefIterator;
         use rayon::iter::ParallelIterator;
         let k = self.street().k();
