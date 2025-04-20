@@ -19,7 +19,7 @@ pub struct Layer {
     metric: Metric,
     kmeans: Vec<Histogram>, // positioned by K-means abstraction
     points: Vec<Histogram>, // positioned by Isomorphism
-    
+
     // TODO: see if we can get a way to do the lookups for the points and centroids in a cleaner
     // way than just indexing into the vectors at the same indices...
     //
@@ -27,13 +27,13 @@ pub struct Layer {
     //
     // 1-D list of upper bounds on the distance from point x to its currently assinged centroid
     // Will be length n, where n is number of points.
-    // Each value corresponds to the same-indexed Histogram in the points vector 
-    point_upper_bounds: Vec<int64>, 
+    // Each value corresponds to the same-indexed Histogram in the points vector
+    point_upper_bounds: Vec<int64>,
     // 2-D list lower bounds on the distance from each point x to each centroid c
     // Dimensions are [n][k] where n is number points and k is number of centroids.
     // (The nested vectors each correspond to the same-indexed Histogram in the points vector
     // Each value inside the nested vectors each correspond to the same-indexed centroid (k in total)
-    point_lower_bounds: Vec<Vec<int64>>  
+    point_lower_bounds: Vec<Vec<int64>>,
 }
 
 impl Layer {
