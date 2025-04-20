@@ -229,8 +229,7 @@ impl Layer {
         let k = self.street().k();
         let mut loss = 0f32;
         let mut centroids = vec![Histogram::default(); k];
-        // TODO CLEAN THIS UP. Currently copy pasted from other function
-
+        
         // Initialize 'c
 
         // Update lower bounds. From paper: ""
