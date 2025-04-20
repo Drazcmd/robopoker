@@ -68,7 +68,8 @@ impl Layer {
         // Dimensions are [n][k] where n is number points and k is number of centroids.
         // (The nested vectors each correspond to the same-indexed Histogram in the points vector
         // Each value inside the nested vectors each correspond to the same-indexed centroid (k in total)
-        let point_lower_bounds: Vec<Vec<f32>> = vec![vec![0; self.kmeans.len] self.points.len];
+        let point_lower_bounds: Vec<Vec<f32>> =
+            vec![vec![0.0; self.kmeans().len()]; self.points().len()];
         // From the paper:
         // "Assign upper bounds x(x) = min_c d(x,c)"
         // (which by definition should be the distance to the currently assigned centroid... i.e. the
@@ -77,11 +78,16 @@ impl Layer {
         // 1-D list of upper bounds on the distance from point x to its currently assinged centroid
         // Will be length n, where n is number of points.
         // Each value corresponds to the same-indexed Histogram in the points vector
-        let point_upper_bounds: Vec<f32>;
+        let point_upper_bounds: Vec<f32> = self
+            .points()
+            .iter()
+            .map(|point| self.neighborhood(point).1)
+            .collect();
 
         for _ in 0..t {
             if triangle_accelerate_todo_replaceme {
-                let (ref mut next, lower, upper) = self.next_kmeans_iteration2_accl();
+                let (ref mut next, lower, upper) =
+                    self.next_kmeans_iteration2_accl(point_lower_bounds, point_upper_bounds);
                 let ref mut last = self.kmeans;
                 std::mem::swap(next, last);
             } else {
@@ -195,10 +201,12 @@ impl Layer {
     /// where possible to skip performing calculations
     fn next_kmeans_iteration2_accl(
         &self,
+        point_lower_bounds: Vec<Vec<f32>>,
+        point_upper_bounds: Vec<f32>,
     ) -> (
-        Vec<Histogram>,  /* K */
-        Vec<int64>,      /* N upper bounds */
-        Vec<Vec<int64>>, /* K*N lower bounds */
+        Vec<Histogram>, /* K */
+        Vec<Vec<f32>>,  /* K*N lower bounds */
+        Vec<f32>,       /* N upper bounds */
     ) {
         use rayon::iter::IntoParallelRefIterator;
         use rayon::iter::ParallelIterator;
@@ -206,7 +214,7 @@ impl Layer {
         let mut loss = 0f32;
         let mut centroids = vec![Histogram::default(); k];
 
-        centroids
+        (centroids, point_lower_bounds, point_upper_bounds)
     }
 
     /// wrawpper for distance metric calculations
