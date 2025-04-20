@@ -86,8 +86,13 @@ impl Layer {
 
         for _ in 0..t {
             if triangle_accelerate_todo_replaceme {
-                let (ref mut next, lower, upper) =
-                    self.next_kmeans_iteration2_accl(point_lower_bounds, point_upper_bounds);
+                // TODO I assume the extra clone() calls are probably not the right way to do this / are wasteful.
+                // ... or maybe not, maybe that's ok. Not sure actually! Need to go learn more about rust to know for certain
+                // what I'm 'meant' to be doing in cases like these....
+                let (ref mut next, point_lower_bounds, point_upper_bounds) = self.next_kmeans_iteration2_accl(
+                    point_lower_bounds.clone(),
+                    point_upper_bounds.clone(),
+                );
                 let ref mut last = self.kmeans;
                 std::mem::swap(next, last);
             } else {
