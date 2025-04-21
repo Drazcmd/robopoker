@@ -108,7 +108,7 @@ impl Layer {
                 nearest_neighbor: nearest_neighbor,
                 // From Elkan (2003) paper:
                 // "Set the lower bound l(x,c) = 0 for each point x and center c"
-                lower_bounds: Vec![0.0, self.kmeans.len()],
+                lower_bounds: Vec![0.0; self.kmeans.len()],
                 // From Elkan (2003) paper:
                 // "Assign upper bounds x(x) = min_c d(x,c)"
                 // (which by definition is the distance of the nearest neighbor at this point)
@@ -257,19 +257,16 @@ impl Layer {
         // algorithm.
 
         // Step 1: For all centers c and c', compute d(c,c'). For all centers
-        // c, compute s(c) = min_{c'!=c} d(c, c')
+        // c, compute s(c) = (1/2) min_{c'!=c} d(c, c')
         //
         // This means s effectively contains the 'distance to the midpoint between
         // this centroid and the closest other centroid' for each centroid.
-        let other_centroid_midpoint_dist = Vec![0, k];
-        for (i, c1) in self.kmeans().iter().enumerate() {
-            let inner_vector = Vec![0, k-1];
-            // for (j, c2) in self.kmeans().iter().enumerate
-        }
+        /*
+        let other_centroid_midpoint_dist = vec![vec![0; self.kmeans().len()];
+        for ((i,c1), (i, c2) in self.kmeans().iter().enumerate().array_combinations() {
+            midpoint_distance = self.emd(c1, c2)
 
-
-
-
+        }*/
 
         // Initialize 'c
 
