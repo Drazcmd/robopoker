@@ -126,9 +126,8 @@ impl Layer {
                 // we initialize "c(x)" mapping each point to its "closest initial center"
                 // so can't do it inside the function. Meaning should proabbly be yet another
                 // input we pass in like lower and upper vectors...
-                let (ref mut next, triangle_inequality_helpers) = self.next_kmeans_iteration2_accl(
-                    triangle_inequality_helpers
-                );
+                let (ref mut next, triangle_inequality_helpers) =
+                    self.next_kmeans_iteration2_accl(triangle_inequality_helpers);
                 let ref mut last = self.kmeans;
                 std::mem::swap(next, last);
             } else {
@@ -242,10 +241,10 @@ impl Layer {
     /// where possible to skip performing calculations
     fn next_kmeans_iteration2_accl(
         &self,
-        points_helper: Vec<TriangleInequalityHelper>,
+        triangle_inequality_helpers: Vec<TriangleInequalityHelper>,
     ) -> (
-        Vec<Histogram>, /* K centroids */
-        Vec<Histogram>, /* Updated Triangle Inequality Helpers */
+        Vec<Histogram>,                /* K centroids */
+        Vec<TriangleInequalityHelper>, /* Updated Triangle Inequality Helpers */
     ) {
         use rayon::iter::IntoParallelRefIterator;
         use rayon::iter::ParallelIterator;
@@ -279,7 +278,7 @@ impl Layer {
         // and out of the function like this. Though, in practice
         // I think is kinda nice to constrain the mutations a bit
         // ... so maybe this is ok after all.
-        (centroids, point_lower_bounds, point_upper_bounds)
+        (centroids, triangle_inequality_helpers)
     }
 
     /// wrawpper for distance metric calculations
