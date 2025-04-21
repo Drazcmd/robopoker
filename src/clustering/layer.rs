@@ -250,7 +250,26 @@ impl Layer {
         use rayon::iter::ParallelIterator;
         let k = self.street().k();
         let mut loss = 0f32;
-        let mut centroids = vec![Histogram::default(); k];
+        let mut output_centroids = vec![Histogram::default(); k];
+
+        // The following 7-step algorithm is taken from Elkan (2003).
+        // It uses triangle inequalities to accelerate the k-means
+        // algorithm.
+
+        // Step 1: For all centers c and c', compute d(c,c'). For all centers
+        // c, compute s(c) = min_{c'!=c} d(c, c')
+        //
+        // This means s effectively contains the 'distance to the midpoint between
+        // this centroid and the closest other centroid' for each centroid.
+        let other_centroid_midpoint_dist = Vec![0, k];
+        for (i, c1) in self.kmeans().iter().enumerate() {
+            let inner_vector = Vec![0, k-1];
+            // for (j, c2) in self.kmeans().iter().enumerate
+        }
+
+
+
+
 
         // Initialize 'c
 
@@ -278,7 +297,7 @@ impl Layer {
         // and out of the function like this. Though, in practice
         // I think is kinda nice to constrain the mutations a bit
         // ... so maybe this is ok after all.
-        (centroids, triangle_inequality_helpers)
+        (output_centroids, triangle_inequality_helpers)
     }
 
     /// wrawpper for distance metric calculations
