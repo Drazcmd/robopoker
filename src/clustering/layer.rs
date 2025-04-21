@@ -26,7 +26,7 @@ pub struct Layer {
 // perform "Triangle inequality"-accelerated K-means clustering.
 //j
 // (see Elkan 2003 for more details)
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct TriangleInequalityHelper {
     // The index in the current Layer kmeans for this point (i.e. a
     // specific value of 'x' in the paper)
@@ -101,14 +101,14 @@ impl Layer {
         let triangle_inequality_helpers: Vec<TriangleInequalityHelper> = self
             .points()
             .iter()
+            .map(|x| self.neighborhood(x))
             .enumerate()
-            .map(|(i, x)| (i, x, self.neighborhood(x)))
-            .map(|(i, x, nearest_neighbor)| TriangleInequalityHelper {
+            .map(|(i, nearest_neighbor)| TriangleInequalityHelper {
                 point_index: i,
                 nearest_neighbor: nearest_neighbor,
                 // From Elkan (2003) paper:
                 // "Set the lower bound l(x,c) = 0 for each point x and center c"
-                lower_bounds: Vec![0.0; self.kmeans.len()],
+                lower_bounds: vec![0.0; self.street().k()],
                 // From Elkan (2003) paper:
                 // "Assign upper bounds x(x) = min_c d(x,c)"
                 // (which by definition is the distance of the nearest neighbor at this point)
@@ -127,7 +127,7 @@ impl Layer {
                 // so can't do it inside the function. Meaning should proabbly be yet another
                 // input we pass in like lower and upper vectors...
                 let (ref mut next, triangle_inequality_helpers) =
-                    self.next_kmeans_iteration2_accl(triangle_inequality_helpers);
+                    self.next_kmeans_iteration2_accl(triangle_inequality_helpers.clone());
                 let ref mut last = self.kmeans;
                 std::mem::swap(next, last);
             } else {
@@ -252,23 +252,52 @@ impl Layer {
         let mut loss = 0f32;
         let mut output_centroids = vec![Histogram::default(); k];
 
+        // ****
         // The following 7-step algorithm is taken from Elkan (2003).
         // It uses triangle inequalities to accelerate the k-means
         // algorithm.
+        // ****
 
-        // Step 1: For all centers c and c', compute d(c,c'). For all centers
+        // *Step 1*: For all centers c and c', compute d(c,c'). For all centers
         // c, compute s(c) = (1/2) min_{c'!=c} d(c, c')
         //
         // This means s effectively contains the 'distance to the midpoint between
         // this centroid and the closest other centroid' for each centroid.
-        /*
-        let other_centroid_midpoint_dist = vec![vec![0; self.kmeans().len()];
-        for ((i,c1), (i, c2) in self.kmeans().iter().enumerate().array_combinations() {
-            midpoint_distance = self.emd(c1, c2)
 
-        }*/
-
-        // Initialize 'c
+        // d(c, c')
+        let centroid_to_centroid_distances = vec![vec![0.0; k]; k];
+        // Enumerate *first* before grabbing each (distinct) combination so that the
+        // indices of each centroid we're looking at in the loop still map to their index
+        // in Layer's kmeans field.
+        for ((i1, c1), (i2, c2)) in self.kmeans().iter().enumerate().array_combinations() {
+            let distance: f32 = 0.5 * self.emd(c1, c2);
+            // By definiton they are the same distance from each other
+            //
+            // TODO: DOUBLE CHECK THAT THAT'S ACTUALLY THE CASE! (Assuming
+            // it is, but I actually don't *know* that for certain).
+            // (if not... then need to do 2 separate emd calculations)
+            centroid_to_centroid_distances[i1][i2] = distance;
+            centroid_to_centroid_distances[i2][i1] = distance;
+        }
+        // s(c) = (1/2) min_{c'!=c} d(c, c')
+        let centroid_min_midpoint: Vec<f32> = centroid_to_centroid_distances
+            .iter()
+            .enumerate()
+            // Figure out the mimum distance from each centroid to another centroid
+            // (ie the closet other centroid)
+            .map(|(i1, distances)| {
+                distances
+                    .iter()
+                    // Exclude the "0" distance from a centroid to itself
+                    .enumerate()
+                    .filter(|(i2, d)| i1 != i2)
+                    .map(|(i2, d)| d)
+                    .min()
+                    .unwrap()
+            })
+            // Compute the distance to their midpoint
+            .map(|d| 0.5 * d)
+            .collect();
 
         // Update lower bounds. From paper: ""
         // 5. For each point x and center c, assign
