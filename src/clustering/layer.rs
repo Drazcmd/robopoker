@@ -265,7 +265,9 @@ impl Layer {
         // this centroid and the closest other centroid' for each centroid.
 
         // d(c, c')
-        let centroid_to_centroid_distances = vec![vec![0.0; k]; k];
+        let centroid_to_centroid_distances = vec![vec![0.0; k]; k];  // might need to initialize to a negative number so we can tell when an entry isn't set?
+                                                // ... orrrr if we don't NEED this later on, could stop keeping it indexed so neatly...
+                                                // or even stop making it at all / just directly compute the s(c) vector... TBD.
         // Enumerate *first* before grabbing each (distinct) combination so that the
         // indices of each centroid we're looking at in the loop still map to their index
         // in Layer's kmeans field.
@@ -288,14 +290,14 @@ impl Layer {
             .map(|(i1, distances)| {
                 distances
                     .iter()
-                    // Exclude the "0" distance from a centroid to itself
                     .enumerate()
+                    // Exclude the "0" distance from a centroid to itself before taking the min
                     .filter(|(i2, d)| i1 != i2)
                     .map(|(i2, d)| d)
                     .min()
                     .unwrap()
             })
-            // Compute the distance to their midpoint
+            // Compute the distance to the midpoint instead of each other
             .map(|d| 0.5 * d)
             .collect();
 
