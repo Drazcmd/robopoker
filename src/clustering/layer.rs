@@ -21,16 +21,17 @@ pub struct Layer {
     points: Vec<Histogram>, // positioned by Isomorphism
 }
 
-// Contains 1. the index of a specific point in the current Layer's 'points'
-// field and 2. various additional information for said point needed to
-// perform "Triangle inequality"-accelerated K-means clustering.
-//j
+// Contains for a specific point in the current Layer's 'points' field various
+// additional information for said point needed to perform "Triangle
+// inequality"-accelerated K-means clustering.
+//
+// Intended use case is storing in a vector where each value in the vector
+// corresponds to the Point with matching index in the current Layer's kmeans
+// field.
+//
 // (see Elkan 2003 for more details)
 #[derive(Debug, Clone)]
 struct TriangleInequalityHelper {
-    // The index in the current Layer kmeans for this point (i.e. a
-    // specific value of 'x' in the paper)
-    point_index: usize,
     // The index in the current Layer of the currently
     // assigned "nearest-neighbor" centroid for the specifed point ('c(x)' in
     // the paper) as well as the distance to said centroid
@@ -100,8 +101,6 @@ impl Layer {
             .map(|x| self.neighborhood(x))
             .enumerate()
             .map(|(i, nearest_neighbor)| TriangleInequalityHelper {
-                // "x"
-                point_index: i,
                 // "c(x)" (and distance to said c, since 'why not')
                 nearest_neighbor: nearest_neighbor,
                 // "l(x,c)"
@@ -254,16 +253,16 @@ impl Layer {
         let mut output_centroids = vec![Histogram::default(); k];
 
         // ****
-        // The following 7-step algorithm is taken from Elkan (2003).
-        // It uses triangle inequalities to accelerate the k-means
-        // algorithm.
+        // The following 7-step algorithm is taken from Elkan (2003). It uses
+        // triangle inequalities to accelerate the k-means algorithm.
         // ****
 
-        // *Step 1*: For all centers c and c', compute d(c,c'). For all centers
-        // c, compute s(c) = (1/2) min_{c'!=c} d(c, c')
+        // *Step 1*: For all centers c and c', compute d(c,c'). For all
+        //  centers c, compute s(c) = (1/2) min_{c'!=c} d(c, c')
         //
-        // This means s effectively contains the 'distance to the midpoint between
-        // this centroid and the closest other centroid' for each centroid.
+        // This means s effectively contains the 'distance to the midpoint
+        // between this centroid and the closest other centroid' for each
+        // centroid.
 
         // 1.1: d(c, c') for all centers c and c'
         let centroid_to_centroid_distances: Vec<Vec<f32>> = self
@@ -288,21 +287,50 @@ impl Layer {
             .iter()
             .enumerate()
             .map(|(i, distances_from_centroid_i)| {
-                // TLDR reducing down each per-centroid row to 1/2 the minimum distance to all
-                // centroids except itself
+                // TLDR reducing down each per-centroid row to 1/2 the minimum
+                // distance to all centroids except itself
                 distances_from_centroid_i
                     .iter()
                     .enumerate()
                     .filter(|(other_centroid_index, distance)| *other_centroid_index != i)
                     .map(|(other_centroid_index, distance)| distance * 0.5)
-                    // Workaround for f32 not implementing Ord due to NaN being incomparable.
+                    // Workaround for f32 not implementing Ord due to NaN
+                    // being incomparable.
                     // https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.min
                     .reduce(f32::min)
-                    // ... TBD - might want to actually do something non-zero, seems like 0 could
-                    // bite us if something "weird" were to happen here.
-                    .unwrap_or(0.)
-            })
+                    // ... TBD - might want to actually do something non-zero,
+                    // seems like 0 could bite us if something "weird" were to
+                    // happen here.
+                    .unwrap_or(0.) })
             .collect();
+
+        // Step 2: "Identify all points such that u(x) <= s(c(x)).
+        let points_where_upper_bound_less_than_closest_midpoint: Vec<usize> =
+            triangle_inequality_helpers
+                .iter()
+                .enumerate()
+                .filter(|(x, helper)| {
+                    // Note: s(c(x)), i.e. passing c(x) into s(c). So it's not
+                    // the index of the point itself that we should look up
+                    // in s, but rather the index of the _centroid to which
+                    // the point x is currently assigned_. Or in other
+                    // words - the index of x's current "nearest neighbor".
+                    //
+                    // TODO: THIS IS OBVIOUSLY CORRECT POST-INITIALIZATION,
+                    // BUT RELYING ON IT PAST THAT POINT MEANS WE NEED TO
+                    // MAKE SURE THAT THE HELPERS VECTOR CORRECTLY UPDATES
+                    // THE NEAREST NEIGHBOR FIELD TO POINT TO THE CURRENT
+                    // CENTROID FOR EACH POINT AFTER EACH ITERATION.
+                    // (... probably need to stop storing a Neighbor in the
+                    // struct, since I think we'll end up having to retake
+                    // the distances again to do it cleanly, defeating the
+                    // purpose of this all. If that's correct should instead
+                    // just store the usize in the Helper struct)
+                    helper.upper_bound <=
+                    per_centroid_distance_to_closet_midpoint
+                    [*x.nearest_neighbor.0] })
+                .map(|(x, helper)| x)
+                .collect();
 
         // Update lower bounds. From paper: ""
         // 5. For each point x and center c, assign
