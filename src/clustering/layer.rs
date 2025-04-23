@@ -333,6 +333,11 @@ impl Layer {
                 .map(|(x, helper)| x)
                 .collect();
 
+        // Step 3: For all remaining points x and centers c such that ... ...
+
+        // Step 4: For each center c, let m(c) be the mean of the points
+        // assigned to c
+
         // Update lower bounds. From paper: ""
         // 5. For each point x and center c, assign
         //    l(x,c) = max{ l(x, c) - d(c, m(c)), 0 }
