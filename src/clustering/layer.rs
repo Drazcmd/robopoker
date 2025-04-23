@@ -266,17 +266,22 @@ impl Layer {
         // this centroid and the closest other centroid' for each centroid.
 
         // 1.1: d(c, c') for all centers c and c'
-        let centroid_to_centroid_distances: Vec<Vec<f32>> = self
+        let centroid_to_centroid_distances: Vec<&[f32]> = self
             .kmeans()
+            .iter()
+            // Get all combinations [(c1,c1), (c1,c2), ... (c_k, c_k)] into
+            // a simple 1-D vector to allow for easily parallelizing the emd
+            // calculations.
+            // TLDR: effectively just itertools.array_combinations().
+            .flat_map(|c| self.kmeans().iter().map(|c_prime| (c, c_prime)))
+            .collect::<Vec<_>>()
             .par_iter()
-            .array_combinations() // take all c and c'
             .map(|(center1, center2)| self.emd(center1, center2)) // 1-D vector with length k^2
             .collect::<Vec<f32>>()
-            .iter()
-            .chunks(k) // ... so to make it 2D we gotta split it up
-            .collect();
+            .chunks(k).collect(); // break back out into the 2D k-by-k vector
+
         let centroid_to_centroid_midpoints: Vec<Vec<f32>> = vec![vec![0.0; k]; k];
-        for (i1, centroid_distances) in centroid_to_centroid_distances.iter().enumerate {
+        for (i1, centroid_distances) in centroid_to_centroid_distances.iter().enumerate() {
             for (i2, distance) in centroid_distances {
                 if i1 == i2 {
                     continue;
