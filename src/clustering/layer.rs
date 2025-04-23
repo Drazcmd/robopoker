@@ -85,11 +85,6 @@ impl Layer {
         let progress = crate::progress(t);
         let triangle_accelerate_todo_replaceme = false;
 
-        // Effectively computing initial value for both c(x) and u(x) at the same time (closest initial center and
-        // the upper bound on distance to closest initial center. See below.)
-        let point_nearest_neighbors: Vec<Neighbor> =
-            self.points().iter().map(|x| self.neighborhood(x)).collect();
-
         // Initialization from Elkan (2003) immediately prior to the 7-step
         // triangle inequality-based accelereated k-means algorithm.
         // """
@@ -130,6 +125,8 @@ impl Layer {
                 // we initialize "c(x)" mapping each point to its "closest initial center"
                 // so can't do it inside the function. Meaning should proabbly be yet another
                 // input we pass in like lower and upper vectors...
+                // ... OH. Also I think scoping means this potentially never actually 'does'
+                // anything for the next loop (not sure... tbd. Need to go read up on rust)
                 let (ref mut next, triangle_inequality_helpers) =
                     self.next_kmeans_iteration2_accl(triangle_inequality_helpers.clone());
                 let ref mut last = self.kmeans;
@@ -273,15 +270,15 @@ impl Layer {
             .kmeans()
             .par_iter()
             .array_combinations() // take all c and c'
-            .map(|(center1, center2)| self.emd(c1, c2)) // 1-D vector
-            .collect::<Vec<f32>>() // length k^2
+            .map(|(center1, center2)| self.emd(center1, center2)) // 1-D vector with length k^2
+            .collect::<Vec<f32>>()
             .iter()
             .chunks(k) // ... so to make it 2D we gotta split it up
             .collect();
         let centroid_to_centroid_midpoints: Vec<Vec<f32>> = vec![vec![0.0; k]; k];
         for (i1, centroid_distances) in centroid_to_centroid_distances.iter().enumerate {
             for (i2, distance) in centroid_distances {
-                if (i == j) {
+                if i1 == i2 {
                     continue;
                 }
                 centroid_to_centroid_distances[i1][i2] = 0.5 * distance;
