@@ -273,7 +273,7 @@ impl Layer {
             // a simple 1-D vector to allow for easily parallelizing the emd
             // calculations.
             // TLDR: effectively just itertools.array_combinations().
-            .flat_map(|c| self.kmeans().iter().map(|c_prime| (c, c_prime)))
+            .flat_map(|c| self.kmeans().iter().map(move |c_prime| (c, c_prime)))
             .collect::<Vec<_>>()
             .par_iter()
             .map(|(center1, center2)| self.emd(center1, center2)) // 1-D vector with length k^2
