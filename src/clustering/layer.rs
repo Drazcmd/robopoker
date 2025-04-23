@@ -301,7 +301,8 @@ impl Layer {
                     // ... TBD - might want to actually do something non-zero,
                     // seems like 0 could bite us if something "weird" were to
                     // happen here.
-                    .unwrap_or(0.) })
+                    .unwrap_or(0.)
+            })
             .collect();
 
         // Step 2: "Identify all points such that u(x) <= s(c(x)).
@@ -326,9 +327,9 @@ impl Layer {
                     // the distances again to do it cleanly, defeating the
                     // purpose of this all. If that's correct should instead
                     // just store the usize in the Helper struct)
-                    helper.upper_bound <=
-                    per_centroid_distance_to_closet_midpoint
-                    [*x.nearest_neighbor.0] })
+                    helper.upper_bound
+                        <= per_centroid_distance_to_closet_midpoint[helper.nearest_neighbor.0]
+                })
                 .map(|(x, helper)| x)
                 .collect();
 
