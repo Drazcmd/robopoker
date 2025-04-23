@@ -116,7 +116,8 @@ impl Layer {
                 // "Assign upper bounds x(x) = min_c d(x,c)" (which by
                 //  definition is the distance of the nearest neighbor at
                 //  this point)
-                upper_bound: nearest_neighbor.1, })
+                upper_bound: nearest_neighbor.1,
+            })
             .collect();
 
         for _ in 0..t {
@@ -267,24 +268,26 @@ impl Layer {
         // This means s effectively contains the 'distance to the midpoint between
         // this centroid and the closest other centroid' for each centroid.
 
-        // d(c, c')
-        let centroid_to_centroid_distances = vec![vec![0.0; k]; k]; // might need to initialize to a negative number so we can tell when an entry isn't set?
-                                                                    // ... orrrr if we don't NEED this later on, could stop keeping it indexed so neatly...
-                                                                    // or even stop making it at all / just directly compute the s(c) vector... TBD.
-                                                                    // Enumerate *first* before grabbing each (distinct) combination so that the
-                                                                    // indices of each centroid we're looking at in the loop still map to their index
-                                                                    // in Layer's kmeans field.
-        for ((i1, c1), (i2, c2)) in self.kmeans().iter().enumerate().array_combinations() {
-            let distance: f32 = 0.5 * self.emd(c1, c2);
-            // By definiton they are the same distance from each other
-            //
-            // TODO: DOUBLE CHECK THAT THAT'S ACTUALLY THE CASE! (Assuming
-            // it is, but I actually don't *know* that for certain).
-            // (if not... then need to do 2 separate emd calculations)
-            centroid_to_centroid_distances[i1][i2] = distance;
-            centroid_to_centroid_distances[i2][i1] = distance;
+        // 1.1: d(c, c') for all centers c and c'
+        let centroid_to_centroid_distances: Vec<Vec<f32>> = self
+            .kmeans()
+            .par_iter()
+            .array_combinations() // take all c and c'
+            .map(|(center1, center2)| self.emd(c1, c2)) // 1-D vector
+            .collect::<Vec<f32>>() // length k^2
+            .iter()
+            .chunks(k) // ... so to make it 2D we gotta split it up
+            .collect();
+        let centroid_to_centroid_midpoints: Vec<Vec<f32>> = vec![vec![0.0; k]; k];
+        for (i1, centroid_distances) in centroid_to_centroid_distances.iter().enumerate {
+            for (i2, distance) in centroid_distances {
+                if (i == j) {
+                    continue;
+                }
+                centroid_to_centroid_distances[i1][i2] = 0.5 * distance;
+            }
         }
-        // s(c) = (1/2) min_{c'!=c} d(c, c')
+        // 1.2: s(c) = (1/2) min_{c'!=c} d(c, c')
         let centroid_min_midpoint: Vec<f32> = centroid_to_centroid_distances
             .iter()
             .enumerate()
