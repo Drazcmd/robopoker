@@ -284,18 +284,23 @@ impl Layer {
 
         // 1.2: s(c) = (1/2) min_{c'!=c} d(c, c')
         // (i.e. the closest midpoint to another centroid besides itself)
-        let per_centroid_distance_to_closet_midpoint: Vec<f32> = vec![0.0; k];
-        for (i, centroid_distances) in centroid_to_centroid_distances.iter().enumerate() {
-            let considered_distances = centroid_distances
-                .iter()
-                .enumerate()
-                .filter(|(other_centroid_index, distance)| other_centroid_index != i)
-                .map(|(other_centroid_index, distance)| distance * 0.5)
-                // Workaround for f32 not implementing Ord due to NaN being incomparable.
-                // https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.min
-                .reduce(f32::min)
-                .unwrap_or(0.);
-        }
+        let per_centroid_distance_to_closet_midpoint: Vec<f32> = centroid_to_centroid_distances
+            .iter()
+            .enumerate()
+            .map(|(i, distances_from_centroid_i)| {
+                // TLDR reducing down each per-centroid row to 1/2 the minimum distance to all
+                // centroids except itself
+                distances_from_centroid_i
+                    .iter()
+                    .enumerate()
+                    .filter(|(other_centroid_index, distance)| *other_centroid_index != i)
+                    .map(|(other_centroid_index, distance)| distance * 0.5)
+                    // Workaround for f32 not implementing Ord due to NaN being incomparable.
+                    // https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.min
+                    .reduce(f32::min)
+                    .unwrap_or(0.)
+            })
+            .collect();
 
         // Update lower bounds. From paper: ""
         // 5. For each point x and center c, assign
