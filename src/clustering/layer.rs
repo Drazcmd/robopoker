@@ -90,30 +90,33 @@ impl Layer {
         let point_nearest_neighbors: Vec<Neighbor> =
             self.points().iter().map(|x| self.neighborhood(x)).collect();
 
-        // Helper vectors for using triangel inequalities to avoid unneeded distance computations.
-        // TODO: clean up the  (which I'm writing mainly to help myself understand the code)
-        // TODO: see if we can get a way to do the lookups for the points and centroids in a cleaner
-        // way than just indexing into the vectors at the same indices...
-        //
-        // (which by definition should be the distance to the currently assigned centroid... i.e. the
-        // 'nearest neighbor')
-
+        // Initialization from Elkan (2003) immediately prior to the 7-step
+        // triangle inequality-based accelereated k-means algorithm.
+        // """
+        // First, pick initial centers. Set the lower bound CP% for each point
+        // and center. Assign each to its closest initial center c(x) =
+        // argmin_c d(x,c), using Lemma 1 to avoid redundant distance
+        // calculations. Each time is computed, set l(x,c) = d(x,c). Assign
+        // upper bounds u(x) = min_c d(x,c).
+        // """
         let triangle_inequality_helpers: Vec<TriangleInequalityHelper> = self
             .points()
             .iter()
             .map(|x| self.neighborhood(x))
             .enumerate()
             .map(|(i, nearest_neighbor)| TriangleInequalityHelper {
+                // "x"
                 point_index: i,
+                // "c(x)" (and distance to said c, since 'why not')
                 nearest_neighbor: nearest_neighbor,
-                // From Elkan (2003) paper:
+                // "l(x,c)"
                 // "Set the lower bound l(x,c) = 0 for each point x and center c"
                 lower_bounds: vec![0.0; self.street().k()],
-                // From Elkan (2003) paper:
-                // "Assign upper bounds x(x) = min_c d(x,c)"
-                // (which by definition is the distance of the nearest neighbor at this point)
-                upper_bound: nearest_neighbor.1,
-            })
+                // "u(x)"
+                // "Assign upper bounds x(x) = min_c d(x,c)" (which by
+                //  definition is the distance of the nearest neighbor at
+                //  this point)
+                upper_bound: nearest_neighbor.1, })
             .collect();
 
         for _ in 0..t {
@@ -265,12 +268,12 @@ impl Layer {
         // this centroid and the closest other centroid' for each centroid.
 
         // d(c, c')
-        let centroid_to_centroid_distances = vec![vec![0.0; k]; k];  // might need to initialize to a negative number so we can tell when an entry isn't set?
-                                                // ... orrrr if we don't NEED this later on, could stop keeping it indexed so neatly...
-                                                // or even stop making it at all / just directly compute the s(c) vector... TBD.
-        // Enumerate *first* before grabbing each (distinct) combination so that the
-        // indices of each centroid we're looking at in the loop still map to their index
-        // in Layer's kmeans field.
+        let centroid_to_centroid_distances = vec![vec![0.0; k]; k]; // might need to initialize to a negative number so we can tell when an entry isn't set?
+                                                                    // ... orrrr if we don't NEED this later on, could stop keeping it indexed so neatly...
+                                                                    // or even stop making it at all / just directly compute the s(c) vector... TBD.
+                                                                    // Enumerate *first* before grabbing each (distinct) combination so that the
+                                                                    // indices of each centroid we're looking at in the loop still map to their index
+                                                                    // in Layer's kmeans field.
         for ((i1, c1), (i2, c2)) in self.kmeans().iter().enumerate().array_combinations() {
             let distance: f32 = 0.5 * self.emd(c1, c2);
             // By definiton they are the same distance from each other
