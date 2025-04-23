@@ -266,7 +266,7 @@ impl Layer {
         // this centroid and the closest other centroid' for each centroid.
 
         // 1.1: d(c, c') for all centers c and c'
-        let centroid_to_centroid_distances: Vec<&[f32]> = self
+        let centroid_to_centroid_distances: Vec<Vec<f32>> = self
             .kmeans()
             .iter()
             // Get all combinations [(c1,c1), (c1,c2), ... (c_k, c_k)] into
@@ -278,36 +278,24 @@ impl Layer {
             .par_iter()
             .map(|(center1, center2)| self.emd(center1, center2)) // 1-D vector with length k^2
             .collect::<Vec<f32>>()
-            .chunks(k).collect(); // break back out into the 2D k-by-k vector
-
-        let centroid_to_centroid_midpoints: Vec<Vec<f32>> = vec![vec![0.0; k]; k];
-        for (i1, centroid_distances) in centroid_to_centroid_distances.iter().enumerate() {
-            for (i2, distance) in centroid_distances {
-                if i1 == i2 {
-                    continue;
-                }
-                centroid_to_centroid_distances[i1][i2] = 0.5 * distance;
-            }
-        }
-        // 1.2: s(c) = (1/2) min_{c'!=c} d(c, c')
-        let centroid_min_midpoint: Vec<f32> = centroid_to_centroid_distances
-            .iter()
-            .enumerate()
-            // Figure out the mimum distance from each centroid to another centroid
-            // (ie the closet other centroid)
-            .map(|(i1, distances)| {
-                distances
-                    .iter()
-                    .enumerate()
-                    // Exclude the "0" distance from a centroid to itself before taking the min
-                    .filter(|(i2, d)| i1 != i2)
-                    .map(|(i2, d)| d)
-                    .min()
-                    .unwrap()
-            })
-            // Compute the distance to the midpoint instead of each other
-            .map(|d| 0.5 * d)
+            .chunks(k) // Separate into k-length chunks so we can get it into a 2-D vector
+            .map(|chunked| chunked.to_vec())
             .collect();
+
+        // 1.2: s(c) = (1/2) min_{c'!=c} d(c, c')
+        // (i.e. the closest midpoint to another centroid besides itself)
+        let per_centroid_distance_to_closet_midpoint: Vec<f32> = vec![0.0; k];
+        for (i, centroid_distances) in centroid_to_centroid_distances.iter().enumerate() {
+            let considered_distances = centroid_distances
+                .iter()
+                .enumerate()
+                .filter(|(other_centroid_index, distance)| other_centroid_index != i)
+                .map(|(other_centroid_index, distance)| distance * 0.5)
+                // Workaround for f32 not implementing Ord due to NaN being incomparable.
+                // https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.min
+                .reduce(f32::min)
+                .unwrap_or(0.);
+        }
 
         // Update lower bounds. From paper: ""
         // 5. For each point x and center c, assign
