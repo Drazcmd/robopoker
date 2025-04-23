@@ -298,6 +298,8 @@ impl Layer {
                     // Workaround for f32 not implementing Ord due to NaN being incomparable.
                     // https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.min
                     .reduce(f32::min)
+                    // ... TBD - might want to actually do something non-zero, seems like 0 could
+                    // bite us if something "weird" were to happen here.
                     .unwrap_or(0.)
             })
             .collect();
