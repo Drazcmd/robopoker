@@ -32,9 +32,11 @@ pub struct Layer {
 // (see Elkan 2003 for more details)
 #[derive(Debug, Clone)]
 struct TriangleInequalityHelper {
-    // The index in the current Layer of the currently
-    // assigned "nearest-neighbor" centroid for the specifed point ('c(x)' in
-    // the paper) as well as the distance to said centroid
+    // 0. The index into self.kmeans of c(x) in the paper - i.e. the index in the
+    // current Layer of the currently assigned "nearest-neighbor" centroid
+    // for this specifed point.
+    //
+    // 1. The distance from x to said centroid c(x).
     //
     // TODO: DECIDE WHETHER TO STORE THE ACTUAL HISTOGRAM HERE(... or
     // to *just* store the index and discard the f32 distance. TBD how much
@@ -292,8 +294,8 @@ impl Layer {
                 distances_from_centroid_i
                     .iter()
                     .enumerate()
-                    .filter(|(other_centroid_index, distance)| *other_centroid_index != i)
-                    .map(|(other_centroid_index, distance)| distance * 0.5)
+                    .filter(|(other_centroid_index, _distance)| *other_centroid_index != i)
+                    .map(|(_other_centroid_index, distance)| distance * 0.5)
                     // Workaround for f32 not implementing Ord due to NaN
                     // being incomparable.
                     // https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.min
@@ -316,7 +318,7 @@ impl Layer {
         let step_2_excluded_points: Vec<usize> = triangle_inequality_helpers
             .iter()
             .enumerate()
-            .filter(|(x, helper)| {
+            .filter(|(_x, helper)| {
                 // Note: s(c(x)), i.e. passing c(x) into s(c). So it's not the
                 // index of the point itself that we should look up in s, but
                 // rather the index of the _centroid to which the point x is
@@ -335,36 +337,61 @@ impl Layer {
                 helper.upper_bound
                     <= per_centroid_distance_to_closet_midpoint[helper.nearest_neighbor.0]
             })
-            .map(|(x, helper)| x)
+            .map(|(x, _)| x)
             .collect();
 
         // Step 3: For all remaining points x and centers c such that ...
+        //
+        // ** This vector will be mutated during step 3 !! **
+        // See paper as follows:
+        // "In step (3), each time d(x, c) is calculated for any x and c, its
+        //  lower bound is updated by assigning l(x, c) = d(x, c). Similarly,
+        //  u(x) is updated whenever c(x) is changed or d(x, c(x)) is
+        //  computed.
         //
         // Note also: "When step (3) is implemented with nested loops, the
         // outer loop can be over x or over c. For efficiency ... the outer
         // loop should be over c since k << n typically, and the inner loop
         // should be replaced by vectorized code that operates on all
         // relevant x collectively."
-        let remaining_points_after_step_2: Vec<(usize, &Histogram, TriangleInequalityHelper)> =
-            self.points()
-                .iter()
-                .enumerate()
-                // TBD: Do we really really want to do a clone here? Need to dig into
-                // rust a bit more...
-                .map(|(i, h)| (i, h, triangle_inequality_helpers[i].clone()))
-                .filter(|(x, _, _)| !step_2_excluded_points.contains(x))
-                .collect();
-        for center in self.kmeans() {
-            // Step 3 (i): ... [where] c != c(x)
-            let points_where_not_closest_center: Vec<&(
-                usize,
-                &Histogram,
-                TriangleInequalityHelper,
-            )> = remaining_points_after_step_2
-                .iter()
-                .filter(|(i, _h, helpers)| *i != helpers.nearest_neighbor.0)
-                .collect();
-            
+        let step_3_working_points: Vec<(usize, &Histogram, TriangleInequalityHelper)> = self
+            .points()
+            .iter()
+            .enumerate()
+            // TBD: Do we really really want to do a clone here? Need to dig into
+            // rust a bit more...
+            .map(|(i, h)| (i, h, triangle_inequality_helpers[i].clone()))
+            .filter(|(x, _, _)| !step_2_excluded_points.contains(x))
+            .collect();
+        // TODO: create r(x) for tracking when u(x) is out of date
+        // let step_3_upper_bound_stale = vec![.......]
+
+        for center_c in self.kmeans() {
+            let per_center_c_step_3_points: Vec<&(usize, &Histogram, TriangleInequalityHelper)> =
+                step_3_working_points
+                    .iter()
+                    // Step 3 (i): ... [where] c != c(x)
+                    .filter(|(i, _h, helpers)| *i != helpers.nearest_neighbor.0)
+                    // Step 3 (ii): ... [where] u(x) > l(x, c)
+                    .filter(|(i, _h, helpers)| helpers.upper_bound > helpers.lower_bounds[*i])
+                    // Step 3 (iii): ... [where] u(x) >  1/2 d(c(x), c)
+                    //
+                    // Note also from the paper:
+                    // "Condition (iii) inside step (3) is beneficial despite step (2), becaus
+                    // u(x) and c(x) may change during the execution of step (3)"
+                    .filter(|(_i, _h, helpers)| {
+                        let distance_to_midpoint_of_current_centroid_and_center_c =
+                            0.5 * self.emd(&self.kmeans[helpers.nearest_neighbor.0], center_c);
+                        return helpers.upper_bound
+                            > distance_to_midpoint_of_current_centroid_and_center_c;
+                    })
+                    .collect();
+
+            // (As discussed above: each time we compute d(x,c) we update
+            // the value l(x,c).)
+
+            // Step 3.a: If r(x) then compute d(x, c(x)) and assign r(x) =
+            // false. Otherwise, d(x, c(x)) = u(x).
         }
 
         // Step 4: For each center c, let m(c) be the mean of the points
