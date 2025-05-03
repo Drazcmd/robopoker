@@ -25,7 +25,7 @@ pub struct Layer {
 // additional information for said point needed to perform "Triangle
 // inequality"-accelerated K-means clustering.
 //
-// Intended use case is storing in a vector where each value in the vector
+// Intended use case is storing in a vector where each value ina the vector
 // corresponds to the Point with matching index in the current Layer's kmeans
 // field.
 //
@@ -332,8 +332,9 @@ impl Layer {
                 // up having to retake the distances again to do it cleanly,
                 // defeating the purpose of this all. If that's correct
                 // should instead just store the usize in the Helper struct)
-                helper.upper_bound <= per_centroid_distance_to_closet_midpoint
-                [helper.nearest_neighbor.0] })
+                helper.upper_bound
+                    <= per_centroid_distance_to_closet_midpoint[helper.nearest_neighbor.0]
+            })
             .map(|(x, helper)| x)
             .collect();
 
@@ -344,14 +345,26 @@ impl Layer {
         // loop should be over c since k << n typically, and the inner loop
         // should be replaced by vectorized code that operates on all
         // relevant x collectively."
-        let remaining_points_after_step_2: Vec<(usize, &Histogram)> = self
-            .points()
-            .iter()
-            .enumerate()
-            .filter(|(x, h)| !step_2_excluded_points.contains(x))
-            .collect();
+        let remaining_points_after_step_2: Vec<(usize, &Histogram, TriangleInequalityHelper)> =
+            self.points()
+                .iter()
+                .enumerate()
+                // TBD: Do we really really want to do a clone here? Need to dig into
+                // rust a bit more...
+                .map(|(i, h)| (i, h, triangle_inequality_helpers[i].clone()))
+                .filter(|(x, _, _)| !step_2_excluded_points.contains(x))
+                .collect();
         for center in self.kmeans() {
-            // Step 3 (i): where c != c(x)
+            // Step 3 (i): ... [where] c != c(x)
+            let points_where_not_closest_center: Vec<&(
+                usize,
+                &Histogram,
+                TriangleInequalityHelper,
+            )> = remaining_points_after_step_2
+                .iter()
+                .filter(|(i, _h, helpers)| *i != helpers.nearest_neighbor.0)
+                .collect();
+            
         }
 
         // Step 4: For each center c, let m(c) be the mean of the points
