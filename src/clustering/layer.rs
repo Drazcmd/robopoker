@@ -305,35 +305,54 @@ impl Layer {
             })
             .collect();
 
-        // Step 2: "Identify all points such that u(x) <= s(c(x)).
-        let points_where_upper_bound_less_than_closest_midpoint: Vec<usize> =
-            triangle_inequality_helpers
-                .iter()
-                .enumerate()
-                .filter(|(x, helper)| {
-                    // Note: s(c(x)), i.e. passing c(x) into s(c). So it's not
-                    // the index of the point itself that we should look up
-                    // in s, but rather the index of the _centroid to which
-                    // the point x is currently assigned_. Or in other
-                    // words - the index of x's current "nearest neighbor".
-                    //
-                    // TODO: THIS IS OBVIOUSLY CORRECT POST-INITIALIZATION,
-                    // BUT RELYING ON IT PAST THAT POINT MEANS WE NEED TO
-                    // MAKE SURE THAT THE HELPERS VECTOR CORRECTLY UPDATES
-                    // THE NEAREST NEIGHBOR FIELD TO POINT TO THE CURRENT
-                    // CENTROID FOR EACH POINT AFTER EACH ITERATION.
-                    // (... probably need to stop storing a Neighbor in the
-                    // struct, since I think we'll end up having to retake
-                    // the distances again to do it cleanly, defeating the
-                    // purpose of this all. If that's correct should instead
-                    // just store the usize in the Helper struct)
-                    helper.upper_bound
-                        <= per_centroid_distance_to_closet_midpoint[helper.nearest_neighbor.0]
-                })
-                .map(|(x, helper)| x)
-                .collect();
+        // Step 2: "Identify all points x such that u(x) <= s(c(x)).", i.e.
+        // where the upper bound for the opint is less than its closest
+        // midpoint.
+        //
+        // See also from the paper: "Logically, step (2) is redundant ...
+        // [but c]omputationally step (2) is beneficial because if it
+        // eliminates a point x from further consideration, then comparing u
+        // (x) to l(x,c) for every c separately is not necessary."
+        let step_2_excluded_points: Vec<usize> = triangle_inequality_helpers
+            .iter()
+            .enumerate()
+            .filter(|(x, helper)| {
+                // Note: s(c(x)), i.e. passing c(x) into s(c). So it's not the
+                // index of the point itself that we should look up in s, but
+                // rather the index of the _centroid to which the point x is
+                // currently assigned_. Or in other words - the index of x's
+                // current "nearest neighbor".
+                //
+                // TODO: THIS IS OBVIOUSLY CORRECT POST-INITIALIZATION, BUT
+                // RELYING ON IT PAST THAT POINT MEANS WE NEED TO MAKE SURE
+                // THAT THE HELPERS VECTOR CORRECTLY UPDATES THE NEAREST
+                // NEIGHBOR FIELD TO POINT TO THE CURRENT CENTROID FOR EACH
+                // POINT AFTER EACH ITERATION.(... probably need to stop
+                // storing a Neighbor in the struct, since I think we'll end
+                // up having to retake the distances again to do it cleanly,
+                // defeating the purpose of this all. If that's correct
+                // should instead just store the usize in the Helper struct)
+                helper.upper_bound <= per_centroid_distance_to_closet_midpoint
+                [helper.nearest_neighbor.0] })
+            .map(|(x, helper)| x)
+            .collect();
 
-        // Step 3: For all remaining points x and centers c such that ... ...
+        // Step 3: For all remaining points x and centers c such that ...
+        //
+        // Note also: "When step (3) is implemented with nested loops, the
+        // outer loop can be over x or over c. For efficiency ... the outer
+        // loop should be over c since k << n typically, and the inner loop
+        // should be replaced by vectorized code that operates on all
+        // relevant x collectively."
+        let remaining_points_after_step_2: Vec<(usize, &Histogram)> = self
+            .points()
+            .iter()
+            .enumerate()
+            .filter(|(x, h)| !step_2_excluded_points.contains(x))
+            .collect();
+        for center in self.kmeans() {
+            // Step 3 (i): where c != c(x)
+        }
 
         // Step 4: For each center c, let m(c) be the mean of the points
         // assigned to c
