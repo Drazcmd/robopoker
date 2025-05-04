@@ -502,30 +502,32 @@ impl Layer {
         // Step 4: For each center c, let m(c) be the mean of the points
         // assigned to c
 
-        // Update lower bounds. From paper: ""
+        // Step 5: Update lower bounds. From paper: ""
         // 5. For each point x and center c, assign
         //    l(x,c) = max{ l(x, c) - d(c, m(c)), 0 }
         // """
         //
 
-        // Update upper bounds. From paper: """
+        // Step 6: Update upper bounds. From paper: """
+        // 6. For each point x, assign
         //    u(x) = u(x) + d(m(c(x)), c(x))
         //    r(x) = true
         // """
-        // Notably, no need to mess with r(x) since we're
-        // already inside a loop that sets it
+
+        // Form paper "[Compute] the new location of each cluster center",
+        // i.e. Step 7:
+        // "7. Replace each center c by m(c)"
         //
-        // ... this is kinda weird actually, since in the middle
-        // of the iteration we'll be messing with l and u...
-        // Both "each time d(x,c) is computed set l(x,c) = d(x,c)"
-        // and "u(x) ... may change during the executino of step(3)"
-        // (which is itself weird, I don't see any references to updating
-        // it there or anywhere else so far...?)
-        //
-        // arguably it's kinda weird that we're passing it in
-        // and out of the function like this. Though, in practice
-        // I think is kinda nice to constrain the mutations a bit
-        // ... so maybe this is ok after all.
+        // Note also:
+        // """
+        // Step 4 computes the new location of each cluster center.
+        // Setting m(c) to be the mean of the points assigned to is
+        // appropriate when the distance metric in use is Euclidean
+        // distance. Otherwise, may be defined differently. For
+        // example, with k-medians the new center of each cluster is
+        // a representative member of the cluster.
+        // """
+
         return (output_centroids, step_4_helpers);
     }
 
