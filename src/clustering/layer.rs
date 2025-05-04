@@ -502,6 +502,29 @@ impl Layer {
 
         // Step 4: For each center c, let m(c) be the mean of the points
         // assigned to c
+        //
+        // (This becomes the new replacement centroid!)
+        let points_assigned_per_center: Vec<Vec<Histogram>> = self
+            .kmeans()
+            .iter()
+            .enumerate()
+            .map(|(center_c_idx, _center_c)| {
+                step_4_helpers
+                    .iter()
+                    .enumerate()
+                    .filter(|(_point_i, helper)| helper.assigned_centroid_idx == center_c_idx)
+                    .map(|(point_i, _)| self.points()[point_i].clone())
+                    .collect()
+            })
+            .collect();
+        let mut mean_of_points_assigned_per_center: Vec<Histogram> = vec![];
+        for (center_c_idx, points) in points_assigned_per_center.iter().enumerate() {
+            let mut next_mean = points[0].clone();
+            for point in points.into_iter().skip(1) {
+                next_mean.absorb(point);
+            }
+            mean_of_points_assigned_per_center.push(next_mean.clone());
+        }
 
         // Step 5: Update lower bounds. From paper: ""
         // 5. For each point x and center c, assign
@@ -529,7 +552,10 @@ impl Layer {
         // a representative member of the cluster.
         // """
 
-        return (output_centroids, step_4_helpers);
+        todo!("not actually ready");
+        let step_7_helpers = step_4_helpers.clone();
+
+        return (mean_of_points_assigned_per_center, step_7_helpers);
     }
 
     /// wrawpper for distance metric calculations
