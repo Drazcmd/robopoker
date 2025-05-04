@@ -120,16 +120,7 @@ impl Layer {
 
         for _ in 0..t {
             if triangle_accelerate_todo_replaceme {
-                // TODO I assume the extra clone() calls are probably not the right way to do this / are wasteful.
-                // ... or maybe not, maybe that's ok. Not sure actually! Need to go learn more about rust to know for certain
-                // what I'm 'meant' to be doing in cases like these....
-
-                // NEED TO UPDATE THIS I THINK. Need to have a way where AT THE START
-                // we initialize "c(x)" mapping each point to its "closest initial center"
-                // so can't do it inside the function. Meaning should proabbly be yet another
-                // input we pass in like lower and upper vectors...
-                // ... OH. Also I think scoping means this potentially never actually 'does'
-                // anything for the next loop (not sure... tbd. Need to go read up on rust)
+                todo!("I'm pretty sure this isn't actually doing what I wanted it to / needs to be updated.");
                 let (ref mut next, triangle_inequality_helpers) =
                     self.next_kmeans_iteration2_accl(triangle_inequality_helpers.clone());
                 let ref mut last = self.kmeans;
@@ -255,10 +246,9 @@ impl Layer {
         use rayon::iter::ParallelIterator;
 
         let k = self.street().k();
-        // TODO: decide if to use this or not to make life easier
+        // TODO: decide whether to start using these
         // let n = self.points().len();
-        let mut loss = 0f32;
-        let mut output_centroids = vec![Histogram::default(); k];
+        // let mut loss = 0f32;
 
         // ****
         // The following 7-step algorithm is taken from Elkan (2003). It uses
@@ -506,6 +496,19 @@ impl Layer {
         // assigned to c
         //
         // (This becomes the new replacement centroid!)
+        //
+        // Note also:
+        // """
+        // Step 4 computes the new location of each cluster center.
+        // Setting m(c) to be the mean of the points assigned to is
+        // appropriate when the distance metric in use is Euclidean
+        // distance. Otherwise, may be defined differently. For
+        // example, with k-medians the new center of each cluster is
+        // a representative member of the cluster.
+        // """
+        //
+        // In this case it's a little weird looking ('aborbing' histograms) since we're using emd
+        // instead of Euclidean distance.
         let points_assigned_per_center: Vec<Vec<Histogram>> = self
             .kmeans()
             .iter()
@@ -520,7 +523,7 @@ impl Layer {
             })
             .collect();
         let mut mean_of_points_assigned_per_center: Vec<Histogram> = vec![];
-        for (center_c_idx, points) in points_assigned_per_center.iter().enumerate() {
+        for points in points_assigned_per_center.iter() {
             let mut next_mean = points[0].clone();
             for point in points.into_iter().skip(1) {
                 next_mean.absorb(point);
@@ -533,7 +536,7 @@ impl Layer {
         //    l(x,c) = max{ l(x, c) - d(c, m(c)), 0 }
         // """
         let mut step_5_helpers = step_4_helpers.clone();
-        for mut helper in &mut step_5_helpers {
+        for helper in &mut step_5_helpers {
             helper.lower_bounds = helper
                 .lower_bounds
                 .par_iter()
@@ -561,7 +564,7 @@ impl Layer {
         //    r(x) = true
         // """
         let mut step_6_helpers = step_5_helpers.clone();
-        for mut helper in step_6_helpers {
+        for helper in &mut step_6_helpers {
             // 'm(c(x))'
             let next_center = &mean_of_points_assigned_per_center[helper.assigned_centroid_idx];
             // 'c(x)'
@@ -589,6 +592,7 @@ impl Layer {
         todo!("not actually ready");
         let step_7_helpers = step_4_helpers.clone();
 
+        let step_7_helpers = step_6_helpers.clone();
         return (mean_of_points_assigned_per_center, step_7_helpers);
     }
 
