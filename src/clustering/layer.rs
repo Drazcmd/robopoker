@@ -372,11 +372,12 @@ impl Layer {
                 .collect();
 
         for (center_c_idx, center_c) in self.kmeans().iter().enumerate().collect::<Vec<_>>() {
+            let immutable_step_3_working_protos = step_3_working_points.clone();
             let step_3_points_not_assigned_to_center_c: Vec<(
                 &usize,
                 &Histogram,
                 TriangleInequalityHelper,
-            )> = step_3_working_points
+            )> = immutable_step_3_working_protos
                 .iter()
                 .map(|(point_i, histogram_and_helper)| {
                     (
