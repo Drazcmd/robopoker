@@ -578,22 +578,8 @@ impl Layer {
         // Form paper "[Compute] the new location of each cluster center",
         // i.e. Step 7:
         // "7. Replace each center c by m(c)"
-        //
-        // Note also:
-        // """
-        // Step 4 computes the new location of each cluster center.
-        // Setting m(c) to be the mean of the points assigned to is
-        // appropriate when the distance metric in use is Euclidean
-        // distance. Otherwise, may be defined differently. For
-        // example, with k-medians the new center of each cluster is
-        // a representative member of the cluster.
-        // """
-
-        todo!("not actually ready");
-        let step_7_helpers = step_4_helpers.clone();
-
-        let step_7_helpers = step_6_helpers.clone();
-        return (mean_of_points_assigned_per_center, step_7_helpers);
+        todo!("not actually ready; need to test + clean up the function");
+        return (mean_of_points_assigned_per_center, step_6_helpers.clone());
     }
 
     /// wrawpper for distance metric calculations
