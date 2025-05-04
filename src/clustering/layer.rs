@@ -533,7 +533,7 @@ impl Layer {
         //    l(x,c) = max{ l(x, c) - d(c, m(c)), 0 }
         // """
         let mut step_5_helpers = step_4_helpers.clone();
-        for mut helper in step_5_helpers {
+        for mut helper in &mut step_5_helpers {
             helper.lower_bounds = helper
                 .lower_bounds
                 .par_iter()
@@ -560,6 +560,17 @@ impl Layer {
         //    u(x) = u(x) + d(m(c(x)), c(x))
         //    r(x) = true
         // """
+        let mut step_6_helpers = step_5_helpers.clone();
+        for mut helper in step_6_helpers {
+            // 'm(c(x))'
+            let next_center = &mean_of_points_assigned_per_center[helper.assigned_centroid_idx];
+            // 'c(x)'
+            let current_center = &self.kmeans()[helper.assigned_centroid_idx];
+            // u(x) = u(x) + d(m(c(x)), c(x))
+            helper.upper_bound = helper.upper_bound + self.emd(&next_center, &current_center);
+            // r(x) = true
+            helper.stale_upper_bound = true;
+        }
 
         // Form paper "[Compute] the new location of each cluster center",
         // i.e. Step 7:
