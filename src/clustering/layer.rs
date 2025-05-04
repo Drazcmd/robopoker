@@ -250,8 +250,10 @@ impl Layer {
         Vec<Histogram>,                /* K centroids */
         Vec<TriangleInequalityHelper>, /* Updated Triangle Inequality Helpers */
     ) {
+        use rayon::iter::IndexedParallelIterator;
         use rayon::iter::IntoParallelRefIterator;
         use rayon::iter::ParallelIterator;
+
         let k = self.street().k();
         // TODO: decide if to use this or not to make life easier
         // let n = self.points().len();
@@ -530,7 +532,28 @@ impl Layer {
         // 5. For each point x and center c, assign
         //    l(x,c) = max{ l(x, c) - d(c, m(c)), 0 }
         // """
-        //
+        let mut step_5_helpers = step_4_helpers.clone();
+        for mut helper in step_5_helpers {
+            helper.lower_bounds = helper
+                .lower_bounds
+                .par_iter()
+                .enumerate()
+                .map(|(center_c_idx, lower_bound)| {
+                    // d(c, m(c))
+                    let dist_center_and_new_center = self.emd(
+                        // 'c'
+                        &self.kmeans()[center_c_idx],
+                        // 'm(c)'
+                        &mean_of_points_assigned_per_center[center_c_idx],
+                    );
+                    f32::max(
+                        // l(x,c) - d(c, m(c))
+                        lower_bound - dist_center_and_new_center,
+                        0.0,
+                    )
+                })
+                .collect();
+        }
 
         // Step 6: Update upper bounds. From paper: """
         // 6. For each point x, assign
