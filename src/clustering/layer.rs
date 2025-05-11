@@ -84,7 +84,6 @@ impl Layer {
         log::info!("{:<32}{:<32}", "clustering  kmeans", self.street());
         let t = self.street().t();
         let progress = crate::progress(t);
-        let triangle_accelerate_todo_replaceme = false;
 
         // Initialization from Elkan (2003) immediately prior to the 7-step
         // triangle inequality-based accelereated k-means algorithm.
@@ -118,17 +117,22 @@ impl Layer {
             })
             .collect();
 
+        let triangle_accelerate_todo_replaceme = false;
         for _ in 0..t {
             if triangle_accelerate_todo_replaceme {
-                todo!("I'm pretty sure this isn't actually doing what I wanted it to / needs to be updated.");
-                let (ref mut next, triangle_inequality_helpers) =
-                    self.next_kmeans_iteration2_accl(triangle_inequality_helpers.clone());
-                let ref mut last = self.kmeans;
-                std::mem::swap(next, last);
+                let (ref next_kmeans, ref next_helpers) =
+                    self.next_kmeans_iteration2_accl(&triangle_inequality_helpers);
+
+                let ref mut mut_kmeans = self.kmeans();
+                *mut_kmeans = next_kmeans;
+
+                let ref mut mut_helpers = &triangle_inequality_helpers;
+                *mut_helpers = next_helpers
             } else {
-                let ref mut next = self.next_kmeans_iteration();
-                let ref mut last = self.kmeans;
-                std::mem::swap(next, last);
+                let ref next_kmeans = self.next_kmeans_iteration();
+
+                let ref mut mut_kmeans = self.kmeans();
+                *mut_kmeans = next_kmeans;
             }
             progress.inc(1);
         }
@@ -236,7 +240,7 @@ impl Layer {
     /// where possible to skip performing calculations
     fn next_kmeans_iteration2_accl(
         &self,
-        triangle_inequality_helpers: Vec<TriangleInequalityHelper>,
+        triangle_inequality_helpers: &Vec<TriangleInequalityHelper>,
     ) -> (
         Vec<Histogram>,                /* K centroids */
         Vec<TriangleInequalityHelper>, /* Updated Triangle Inequality Helpers */
