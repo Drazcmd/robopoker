@@ -117,7 +117,7 @@ impl Layer {
             })
             .collect();
 
-        let triangle_accelerate_todo_replaceme = true;
+        let triangle_accelerate_todo_replaceme = false;
         for _ in 0..t {
             if triangle_accelerate_todo_replaceme {
                 let (ref next_kmeans, ref next_helpers) =
