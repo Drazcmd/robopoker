@@ -583,7 +583,7 @@ impl Layer {
         // i.e. Step 7:
         // "7. Replace each center c by m(c)"
         todo!("not actually ready; need to test + clean up the function");
-        return (mean_of_points_assigned_per_center, step_6_helpers.clone());
+        return (mean_of_points_assigned_per_center, step_6_helpers);
     }
 
     /// wrawpper for distance metric calculations
