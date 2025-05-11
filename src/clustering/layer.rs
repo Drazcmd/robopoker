@@ -117,11 +117,11 @@ impl Layer {
             })
             .collect();
 
-        let triangle_accelerate_todo_replaceme = false;
+        let triangle_accelerate_todo_replaceme = true;
         for _ in 0..t {
             if triangle_accelerate_todo_replaceme {
                 let (ref next_kmeans, ref next_helpers) =
-                    self.next_kmeans_iteration2_accl(&triangle_inequality_helpers);
+                    self.cluster_step_triaccl(&triangle_inequality_helpers);
 
                 let ref mut mut_kmeans = self.kmeans();
                 *mut_kmeans = next_kmeans;
@@ -129,7 +129,7 @@ impl Layer {
                 let ref mut mut_helpers = &triangle_inequality_helpers;
                 *mut_helpers = next_helpers
             } else {
-                let ref next_kmeans = self.next_kmeans_iteration();
+                let ref next_kmeans = self.cluster_step();
 
                 let ref mut mut_kmeans = self.kmeans();
                 *mut_kmeans = next_kmeans;
@@ -201,7 +201,7 @@ impl Layer {
     /// calculates the next step of the kmeans iteration by
     /// determining K * N optimal transport calculations and
     /// taking the nearest neighbor
-    fn next_kmeans_iteration(&self) -> Vec<Histogram> /* K */ {
+    fn cluster_step(&self) -> Vec<Histogram> /* K */ {
         use rayon::iter::IntoParallelRefIterator;
         use rayon::iter::ParallelIterator;
         let k = self.street().k();
@@ -238,7 +238,7 @@ impl Layer {
     /// determining up to K * N optimal transport calculations and
     /// taking the nearest neighbor, using triangle inequalities
     /// where possible to skip performing calculations
-    fn next_kmeans_iteration2_accl(
+    fn cluster_step_triaccl(
         &self,
         triangle_inequality_helpers: &Vec<TriangleInequalityHelper>,
     ) -> (
