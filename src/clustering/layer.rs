@@ -118,7 +118,7 @@ impl Layer {
             })
             .collect();
 
-        let triangle_accelerate_todo_replaceme = false;
+        let triangle_accelerate_todo_replaceme = true;
         for _ in 0..t {
             log::debug!("{:<32}{:<32}", "Starting training iteration:", t);
 
@@ -388,6 +388,14 @@ impl Layer {
                 // Step 3 (i): ... [where] c != c(x)
                 .filter(|(i, _point_h, helper)| **i != helper.assigned_centroid_idx)
                 // Step 3 (ii): ... [where] u(x) > l(x, c)
+
+
+                // PANICS ON THE NEXT LINE (when doing  `cargo run --features shortdeck`):
+                // thread 'main' panicked at src/clustering/layer.rs:391:89:
+                // index out of bounds: the len is 144 but the index is 1021755
+                // (which makes sense, i is index of points but lower boudns is indexed on
+                // centroids I think? TODO: Need to double check I'm not misremembering)
+
                 .filter(|(i, _point_h, helper)| helper.upper_bound > helper.lower_bounds[**i])
                 // Step 3 (iii): ... [where] u(x) >  1/2 d(c(x), c)
                 //
