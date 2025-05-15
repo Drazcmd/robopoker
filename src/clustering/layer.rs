@@ -359,6 +359,11 @@ impl Layer {
         // loop should be over c since k << n typically, and the inner loop
         // should be replaced by vectorized code that operates on all
         // relevant x collectively."
+        //
+        // This is a Hashmap instead of vector since some of the points are
+        // excluded during this step (see step 2 above). Using a vector would
+        // make things more complciated since there would be 'gaps' as a
+        // result.
         let mut step_3_working_points: HashMap<usize, (&Histogram, TriangleInequalityHelper)> =
             self.points()
                 .iter()
@@ -370,6 +375,7 @@ impl Layer {
                 .map(|(point_i, point_h, helper)| (point_i, (point_h, helper)))
                 .collect();
 
+        // Note: looping over *all centers* here, not over just the centers in step_3_working_points
         for (center_c_idx, center_c) in self.kmeans().iter().enumerate().collect::<Vec<_>>() {
             let immutable_step_3_working_protos = step_3_working_points.clone();
             let step_3_points_not_assigned_to_center_c: Vec<(
@@ -386,23 +392,15 @@ impl Layer {
                     )
                 })
                 // Step 3 (i): ... [where] c != c(x)
-                .filter(|(i, _point_h, helper)| **i != helper.assigned_centroid_idx)
+                .filter(|(_i, _h, helper)| center_c_idx != helper.assigned_centroid_idx)
                 // Step 3 (ii): ... [where] u(x) > l(x, c)
-
-
-                // PANICS ON THE NEXT LINE (when doing  `cargo run --features shortdeck`):
-                // thread 'main' panicked at src/clustering/layer.rs:391:89:
-                // index out of bounds: the len is 144 but the index is 1021755
-                // (which makes sense, i is index of points but lower boudns is indexed on
-                // centroids I think? TODO: Need to double check I'm not misremembering)
-
-                .filter(|(i, _point_h, helper)| helper.upper_bound > helper.lower_bounds[**i])
+                .filter(|(_i, _h, helper)| helper.upper_bound > helper.lower_bounds[center_c_idx])
                 // Step 3 (iii): ... [where] u(x) >  1/2 d(c(x), c)
                 //
                 // Note also from the paper:
                 // "Condition (iii) inside step (3) is beneficial despite step (2), becaus
                 // u(x) and c(x) may change during the execution of step (3)"
-                .filter(|(_i, _point_h, helper)| {
+                .filter(|(_i, _h, helper)| {
                     let distance_to_midpoint_of_current_centroid_and_center_c =
                         0.5 * self.emd(&self.kmeans[helper.assigned_centroid_idx], center_c);
                     return helper.upper_bound
