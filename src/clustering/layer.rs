@@ -84,7 +84,7 @@ impl Layer {
         log::info!("{:<32}{:<32}", "clustering  kmeans", self.street());
         let t = self.street().t();
         let progress = crate::progress(t);
-        log::info!("{:<32}{:<32})","  - #training iterations 't':", t);
+        log::info!("{:<32}{:<32}"," - # training iterations 't':", t);
 
         // Initialization from Elkan (2003) immediately prior to the 7-step
         // triangle inequality-based accelereated k-means algorithm.
@@ -120,7 +120,7 @@ impl Layer {
 
         let triangle_accelerate_todo_replaceme = false;
         for _ in 0..t {
-            // log::info!("Training iteration {:<32}", t);
+            log::debug!("{:<32}{:<32}", "Starting training iteration:", t);
 
             if triangle_accelerate_todo_replaceme {
                 let (ref next_kmeans, ref next_helpers) =
