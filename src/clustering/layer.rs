@@ -391,19 +391,15 @@ impl Layer {
             for (point_i, point_h, helper) in immutable_step_3_working_points
                 .par_iter()
                 .map(|(point_i, histogram_and_helper)| {
-                    (
-                        point_i,
-                        histogram_and_helper.0,
-                        histogram_and_helper.1.clone(),
-                    )
+                    (point_i, histogram_and_helper.0, &histogram_and_helper.1)
                 })
                 // ****
                 // * STEP 3 FIRST HALF PER CENTROID: SETUP AND FILTERING (3.i, 3.ii, 3.iii) *
                 // ****
                 // Step 3 (i): ... [where] c != c(x)
-                .filter(|(_, _, helper)| center_c_idx != helper.assigned_centroid_idx)
+                .filter(|(_, _, helper)| center_c_idx != (*helper).assigned_centroid_idx)
                 // Step 3 (ii): ... [where] u(x) > l(x, c)
-                .filter(|(_, _, helper)| helper.upper_bound > helper.lower_bounds[center_c_idx])
+                .filter(|(_, _, helper)| helper.upper_bound > (*helper).lower_bounds[center_c_idx])
                 // Step 3 (iii): ... [where] u(x) >  1/2 d(c(x), c)
                 //
                 // Note also from the paper:
@@ -411,8 +407,8 @@ impl Layer {
                 // u(x) and c(x) may change during the execution of step (3)"
                 .filter(|(_, _, helper)| {
                     let distance_to_midpoint_of_current_centroid_and_center_c =
-                        0.5 * self.emd(&self.kmeans[helper.assigned_centroid_idx], center_c);
-                    return helper.upper_bound
+                        0.5 * self.emd(&self.kmeans[(*helper).assigned_centroid_idx], center_c);
+                    return (*helper).upper_bound
                         > distance_to_midpoint_of_current_centroid_and_center_c;
                 })
                 // ****
