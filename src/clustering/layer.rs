@@ -84,7 +84,7 @@ impl Layer {
         log::info!("{:<32}{:<32}", "clustering  kmeans", self.street());
         let t = self.street().t();
         let progress = crate::progress(t);
-        log::info!("{:<32}{:<32}"," - # training iterations 't':", t);
+        log::info!("{:<32}{:<32}", " - # training iterations 't':", t);
 
         // Initialization from Elkan (2003) immediately prior to the 7-step
         // triangle inequality-based accelereated k-means algorithm.
@@ -364,26 +364,32 @@ impl Layer {
         // excluded during this step (see step 2 above). Using a vector would
         // make things more complciated since there would be 'gaps' as a
         // result.
+        // The Histograms are borrowed instead of owned since we don't need to
+        // update them at all at this step; at most we just use them for some
+        // ditance calculations. (The helpers however DO need to be owned
+        // since we're replacing them all with the updated ones at the very
+        // end of the step.)
         let mut step_3_working_points: HashMap<usize, (&Histogram, TriangleInequalityHelper)> =
             self.points()
                 .iter()
                 .enumerate()
-                // TBD: Do we really really want to do a clone here? Need to dig into
-                // rust a bit more...
-                .map(|(i, h)| (i, h, triangle_inequality_helpers[i].clone()))
-                .filter(|(i, _, _)| !step_2_excluded_points.contains(i))
+                .map(|(point_i, point_h)| {
+                    (
+                        point_i,
+                        point_h,
+                        triangle_inequality_helpers[point_i].clone(),
+                    )
+                })
+                .filter(|(point_i, _, _)| !step_2_excluded_points.contains(point_i))
                 .map(|(point_i, point_h, helper)| (point_i, (point_h, helper)))
                 .collect();
 
-        // Note: looping over *all centers* here, not over just the centers in step_3_working_points
+        // Note: looping over *all centers* here in the outer loop (as mentioned above). NOT over the points / over anything in
+        // step_3_working_points yet. (That all happens instead inside the parallelized code down below inside this outer loop.)
         for (center_c_idx, center_c) in self.kmeans().iter().enumerate().collect::<Vec<_>>() {
-            let immutable_step_3_working_protos = step_3_working_points.clone();
-            let step_3_points_not_assigned_to_center_c: Vec<(
-                &usize,
-                &Histogram,
-                TriangleInequalityHelper,
-            )> = immutable_step_3_working_protos
-                .iter()
+            let immutable_step_3_working_points = step_3_working_points.clone();
+            for (point_i, point_h, helper) in immutable_step_3_working_points
+                .par_iter()
                 .map(|(point_i, histogram_and_helper)| {
                     (
                         point_i,
@@ -391,104 +397,98 @@ impl Layer {
                         histogram_and_helper.1.clone(),
                     )
                 })
+                // ****
+                // * STEP 3 FIRST HALF PER CENTROID: SETUP AND FILTERING (3.i, 3.ii, 3.iii) *
+                // ****
                 // Step 3 (i): ... [where] c != c(x)
-                .filter(|(_i, _h, helper)| center_c_idx != helper.assigned_centroid_idx)
+                .filter(|(_, _, helper)| center_c_idx != helper.assigned_centroid_idx)
                 // Step 3 (ii): ... [where] u(x) > l(x, c)
-                .filter(|(_i, _h, helper)| helper.upper_bound > helper.lower_bounds[center_c_idx])
+                .filter(|(_, _, helper)| helper.upper_bound > helper.lower_bounds[center_c_idx])
                 // Step 3 (iii): ... [where] u(x) >  1/2 d(c(x), c)
                 //
                 // Note also from the paper:
                 // "Condition (iii) inside step (3) is beneficial despite step (2), becaus
                 // u(x) and c(x) may change during the execution of step (3)"
-                .filter(|(_i, _h, helper)| {
+                .filter(|(_, _, helper)| {
                     let distance_to_midpoint_of_current_centroid_and_center_c =
                         0.5 * self.emd(&self.kmeans[helper.assigned_centroid_idx], center_c);
                     return helper.upper_bound
                         > distance_to_midpoint_of_current_centroid_and_center_c;
                 })
-                .collect();
+                // ****
+                // * STEP 3 SECOND HALF PER CENTROID: DISTANCE COMPUTATIONS AND UPDATES (3.a and 3.b) *
+                // ****
+                // Step 3.a: If r(x) then compute d(x, c(x)) and assign r(x) =
+                // false. Otherwise, d(x, c(x)) = u(x).
+                .map(|(point_i, point_h, helper)| {
+                    let possibly_updated_helper_and_distance_from_point_to_current_centroid: (
+                        TriangleInequalityHelper,
+                        f32,
+                    ) = if helper.stale_upper_bound {
+                        let mut h: TriangleInequalityHelper = helper.clone();
+                        let distance_point_to_current_centroid: f32 =
+                            self.emd(point_h, &self.kmeans()[helper.assigned_centroid_idx]);
+                        h.upper_bound = distance_point_to_current_centroid;
+                        // As discussed above: "each time d(x, c) is
+                        // calculated for any x and c, its lower bound is
+                        // updated by assigning l(x, c) = d(x, c)" and
+                        // "u(x) is updated whenever c(x) is changed or d
+                        //  (x, c(x)) is computed."
+                        h.lower_bounds[center_c_idx] = distance_point_to_current_centroid;
+                        // Step 3.a: If r(x) then compute d(x, c(x)) and assign r(x) =
+                        // false. Otherwise, d(x, c(x)) = u(x).
+                        h.stale_upper_bound = false;
 
-            // (Keeping as spearate variables mainly just for readability;
-            // technically could keep chaining onto the above chain.)
-
-            let updated_step_3_points: Vec<(&&usize, &&Histogram, TriangleInequalityHelper)> =
-                step_3_points_not_assigned_to_center_c
-                    // As per the paper, we do the per-point operations parallellized in the inner loop
-                    // since typically "k << n". (That said, we could have done it the other way around)
-                    .par_iter()
-                    // Step 3.a: If r(x) then compute d(x, c(x)) and assign r(x) =
-                    // false. Otherwise, d(x, c(x)) = u(x).
-                    .map(|(point_i, point_h, helper)| {
-                        let possibly_updated_helper_and_distance_from_point_to_current_centroid: (
-                            TriangleInequalityHelper,
-                            f32,
-                        ) = if helper.stale_upper_bound {
-                            let mut h: TriangleInequalityHelper = helper.clone();
-                            let distance_point_to_current_centroid: f32 =
-                                self.emd(point_h, &self.kmeans()[helper.assigned_centroid_idx]);
-                            h.upper_bound = distance_point_to_current_centroid;
+                        (h, distance_point_to_current_centroid)
+                    } else {
+                        (helper.clone(), helper.upper_bound)
+                    };
+                    (
+                        point_i,
+                        point_h,
+                        possibly_updated_helper_and_distance_from_point_to_current_centroid.0,
+                        possibly_updated_helper_and_distance_from_point_to_current_centroid.1,
+                    )
+                })
+                // Step 3.b:
+                // If d(x, c(x)) > l(x,c)
+                // or d(x, c(x)) > (1/2) d(c(x), c)
+                // then:
+                //  Compute d(x,c)
+                //  If d(x,c) < d(x, c(x)) then assign c(x) = c
+                .map(
+                    |(point_i, point_h, helper, distance_point_to_current_centroid)| {
+                        let mut out_helper = helper.clone();
+                        // If d(x, c(x)) > l(x,c)
+                        // or d(x, c(x)) > (1/2) d(c(x), c)
+                        if distance_point_to_current_centroid > helper.lower_bounds[center_c_idx]
+                            || distance_point_to_current_centroid >  // (1/2) * d(c(x), c)
+                        0.5 * centroid_to_centroid_distances[
+                            helper.assigned_centroid_idx][center_c_idx]
+                        {
+                            // ... Compute d(x,c)
+                            let distance_point_to_center_c = self.emd(point_h, center_c);
                             // As discussed above: "each time d(x, c) is
                             // calculated for any x and c, its lower bound is
                             // updated by assigning l(x, c) = d(x, c)" and
                             // "u(x) is updated whenever c(x) is changed or d
                             //  (x, c(x)) is computed."
-                            h.lower_bounds[center_c_idx] = distance_point_to_current_centroid;
-                            // Step 3.a: If r(x) then compute d(x, c(x)) and assign r(x) =
-                            // false. Otherwise, d(x, c(x)) = u(x).
-                            h.stale_upper_bound = false;
+                            out_helper.lower_bounds[center_c_idx] = distance_point_to_center_c;
 
-                            (h, distance_point_to_current_centroid)
-                        } else {
-                            (helper.clone(), helper.upper_bound)
-                        };
-                        (
-                            point_i,
-                            point_h,
-                            possibly_updated_helper_and_distance_from_point_to_current_centroid.0,
-                            possibly_updated_helper_and_distance_from_point_to_current_centroid.1,
-                        )
-                    })
-                    // Step 3.b:
-                    // If d(x, c(x)) > l(x,c)
-                    // or d(x, c(x)) > (1/2) d(c(x), c)
-                    // then:
-                    //  Compute d(x,c)
-                    //  If d(x,c) < d(x, c(x)) then assign c(x) = c
-                    .map(
-                        |(point_i, point_h, helper, distance_point_to_current_centroid)| {
-                            let mut out_helper: TriangleInequalityHelper = helper.clone();
-                            // If d(x, c(x)) > l(x,c)
-                            // or d(x, c(x)) > (1/2) d(c(x), c)
-                            if distance_point_to_current_centroid
-                                > helper.lower_bounds[center_c_idx]
-                                || distance_point_to_current_centroid >  // (1/2) * d(c(x), c)
-                            0.5 * centroid_to_centroid_distances[
-                                helper.assigned_centroid_idx][center_c_idx]
-                            {
-                                // ... Compute d(x,c)
-                                let distance_point_to_center_c = self.emd(point_h, center_c);
-                                // As discussed above: "each time d(x, c) is
-                                // calculated for any x and c, its lower bound is
-                                // updated by assigning l(x, c) = d(x, c)" and
-                                // "u(x) is updated whenever c(x) is changed or d
-                                //  (x, c(x)) is computed."
-                                out_helper.lower_bounds[center_c_idx] = distance_point_to_center_c;
-
-                                // ... If d(x,c) < d(x, c(x)) then assign c(x) = c
-                                if distance_point_to_center_c < distance_point_to_current_centroid {
-                                    out_helper.assigned_centroid_idx = center_c_idx;
-                                }
+                            // ... If d(x,c) < d(x, c(x)) then assign c(x) = c
+                            if distance_point_to_center_c < distance_point_to_current_centroid {
+                                out_helper.assigned_centroid_idx = center_c_idx;
                             }
-                            (point_i, point_h, out_helper)
-                        },
-                    )
-                    .collect();
-            for (point_i, point_h, helper) in updated_step_3_points {
-                // Update the "working points" in preparation for working with the next centroid
-                // here in the 'outer' loop
-                step_3_working_points.insert(**point_i, (point_h, helper));
-            }
-        }
+                        }
+                        (point_i, point_h, out_helper)
+                    },
+                )
+                .collect::<Vec<_>>()
+                .into_iter()
+            {
+                step_3_working_points.insert(*point_i, (point_h, helper));
+            } // (end step 3 for one centroid)
+        } // (end step 3 for all centroids)
 
         // Merge the updated helper values back with the original vector we got
         // at the start of the function (which has entries for *all* points, not
