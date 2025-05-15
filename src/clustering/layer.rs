@@ -369,6 +369,12 @@ impl Layer {
         // ditance calculations. (The helpers however DO need to be owned
         // since we're replacing them all with the updated ones at the very
         // end of the step.)
+        //
+        // TODO: Possibly could just mutate helpers directly + immediately,
+        // rather than creating a copy and doing the update at the end of
+        // the step. (I _think_ this would allow us to avoid doing a bunch
+        // of clones() throughout this step.) Depends on how Rayon works
+        // though; might not actually be possible (TBD)
         let mut step_3_working_points: HashMap<usize, (&Histogram, TriangleInequalityHelper)> =
             self.points()
                 .iter()
