@@ -486,7 +486,7 @@ impl Layer {
                 .collect::<Vec<_>>()
                 .into_iter()
             {
-                step_3_working_points.insert(*point_i, (point_h, helper));
+                step_3_working_points.insert(point_i, (point_h, helper));
             } // (end step 3 for one centroid)
         } // (end step 3 for all centroids)
 
