@@ -489,20 +489,19 @@ impl Layer {
                 .into_iter()
             {
                 step_3_working_points.insert(*point_i, (point_h, helper));
-            } // (end step 3 for one centroid)
-        } // (end step 3 for all centroids)
-
+            }
+        }
         // Merge the updated helper values back with the original vector we got
         // at the start of the function (which has entries for *all* points, not
         // just the ones bieng updated in step 3).
-        let step_4_helpers: Vec<TriangleInequalityHelper> = triangle_inequality_helpers
+        let step_4_helpers: Vec<&TriangleInequalityHelper> = triangle_inequality_helpers
             .iter()
             .enumerate()
             .map(|(point_i, original_helper)| {
                 if step_3_working_points.contains_key(&point_i) {
-                    step_3_working_points[&point_i].1.clone()
+                    &(step_3_working_points[&point_i].1)
                 } else {
-                    original_helper.clone()
+                    original_helper
                 }
             })
             .collect();
@@ -524,7 +523,7 @@ impl Layer {
         //
         // In this case it's a little weird looking ('aborbing' histograms) since we're using emd
         // instead of Euclidean distance.
-        let points_assigned_per_center: Vec<Vec<Histogram>> = self
+        let points_assigned_per_center: Vec<Vec<&Histogram>> = self
             .kmeans()
             .iter()
             .enumerate()
@@ -532,8 +531,8 @@ impl Layer {
                 step_4_helpers
                     .iter()
                     .enumerate()
-                    .filter(|(_point_i, helper)| helper.assigned_centroid_idx == center_c_idx)
-                    .map(|(point_i, _)| self.points()[point_i].clone())
+                    .filter(|(_point_i, helper)| (*helper).assigned_centroid_idx == center_c_idx)
+                    .map(|(point_i, _)| &self.points()[point_i])
                     .collect()
             })
             .collect();
@@ -550,7 +549,8 @@ impl Layer {
         // 5. For each point x and center c, assign
         //    l(x,c) = max{ l(x, c) - d(c, m(c)), 0 }
         // """
-        let mut step_5_helpers = step_4_helpers.clone();
+        let mut step_5_helpers: Vec<TriangleInequalityHelper> =
+            step_4_helpers.into_iter().cloned().collect();
         for helper in &mut step_5_helpers {
             helper.lower_bounds = helper
                 .lower_bounds
@@ -578,7 +578,8 @@ impl Layer {
         //    u(x) = u(x) + d(m(c(x)), c(x))
         //    r(x) = true
         // """
-        let mut step_6_helpers = step_5_helpers.clone();
+        // TODO refactor probably can get away with continuing to borrow here
+        let mut step_6_helpers: Vec<TriangleInequalityHelper> = step_5_helpers;
         for helper in &mut step_6_helpers {
             // 'm(c(x))'
             let next_center = &mean_of_points_assigned_per_center[helper.assigned_centroid_idx];
