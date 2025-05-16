@@ -269,6 +269,8 @@ impl Layer {
         // between this centroid and the closest other centroid' for each
         // centroid.
 
+        log::info!("{:<32}", " - STEP 1 (remove me later)");
+
         // Step 1 (first half): d(c, c') for all centers c and c'
         let centroid_to_centroid_distances: Vec<Vec<f32>> = self
             .kmeans()
@@ -310,6 +312,8 @@ impl Layer {
             })
             .collect();
 
+        log::info!("{:<32}", " - STEP 2 (remove me later)");
+
         // Step 2: "Identify all points x such that u(x) <= s(c(x)).", i.e.
         // where the upper bound for the opint is less than its closest
         // midpoint.
@@ -342,6 +346,7 @@ impl Layer {
             })
             .map(|(x, _)| x)
             .collect();
+        log::info!("{:<32}", " - STEP 3 (remove me later)");
 
         // Step 3: For all remaining points x and centers c such that ...
         //
@@ -491,6 +496,9 @@ impl Layer {
                 step_3_working_points.insert(*point_i, (point_h, helper));
             }
         }
+
+        log::info!("{:<32}", " - STEP 4 (remove me later)");
+
         // Merge the updated helper values back with the original vector we got
         // at the start of the function (which has entries for *all* points, not
         // just the ones bieng updated in step 3).
@@ -545,6 +553,8 @@ impl Layer {
             mean_of_points_assigned_per_center.push(next_mean.clone());
         }
 
+        log::info!("{:<32}", " - STEP 5 (remove me later)");
+
         // Step 5: Update lower bounds. From paper: ""
         // 5. For each point x and center c, assign
         //    l(x,c) = max{ l(x, c) - d(c, m(c)), 0 }
@@ -573,6 +583,7 @@ impl Layer {
                 .collect();
         }
 
+        log::info!("{:<32}", " - STEP 6 (remove me later)");
         // Step 6: Update upper bounds. From paper: """
         // 6. For each point x, assign
         //    u(x) = u(x) + d(m(c(x)), c(x))
@@ -594,6 +605,7 @@ impl Layer {
         // Form paper "[Compute] the new location of each cluster center",
         // i.e. Step 7:
         // "7. Replace each center c by m(c)"
+        log::info!("{:<32}", " - STEP 7 (remove me later)");
         return (mean_of_points_assigned_per_center, step_6_helpers);
     }
 
