@@ -567,6 +567,10 @@ impl Layer {
         let mut centroids: Vec<Histogram> = vec![];
         for points in points_assigned_per_center.iter() {
             let mut mean_of_assigned_points = points[0].clone();
+            if points.len() < 1 {
+                // TODO: Figure out what to do for the centroid if there's no poitns assigned to it.
+                log::error!("No points assigned to current centroid. This is currently an edge case we are unable to resolve; for more details see https://github.com/krukah/robopoker/issues/34#issuecomment-2860641178")
+            }
             for point in points.into_iter().skip(1) {
                 mean_of_assigned_points.absorb(point);
             }
