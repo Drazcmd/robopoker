@@ -133,7 +133,7 @@ impl Layer {
 
             if triangle_accelerate_todo_replaceme {
                 let (ref next_kmeans, ref next_helpers) =
-                    self.cluster_step_triaccl(&triangle_inequality_helpers);
+                    self.compute_next_centroids_triaccl(&triangle_inequality_helpers);
 
                 let ref mut mut_kmeans = self.kmeans();
                 *mut_kmeans = next_kmeans;
@@ -141,7 +141,7 @@ impl Layer {
                 let ref mut mut_helpers = &triangle_inequality_helpers;
                 *mut_helpers = next_helpers
             } else {
-                let ref next_kmeans = self.cluster_step();
+                let ref next_kmeans = self.compute_next_centroids();
 
                 let ref mut mut_kmeans = self.kmeans();
                 *mut_kmeans = next_kmeans;
@@ -213,7 +213,7 @@ impl Layer {
     /// calculates the next step of the kmeans iteration by
     /// determining K * N optimal transport calculations and
     /// taking the nearest neighbor
-    fn cluster_step(&self) -> Vec<Histogram> /* K */ {
+    fn compute_next_centroids(&self) -> Vec<Histogram> /* K */ {
         use rayon::iter::IntoParallelRefIterator;
         use rayon::iter::ParallelIterator;
         let k = self.street().k();
@@ -257,7 +257,7 @@ impl Layer {
     /// of the datasets in the paper (Elkan (2003)) and verifying
     /// that we can replicate its results - as well as just
     /// generally writing some unit tests.
-    fn cluster_step_triaccl(
+    fn compute_next_centroids_triaccl(
         &self,
         triangle_inequality_helpers: &Vec<TIBounds>,
     ) -> (
