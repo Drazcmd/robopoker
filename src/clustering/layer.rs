@@ -23,17 +23,19 @@ pub struct Layer {
     points: Vec<Histogram>, // positioned by Isomorphism
 }
 
-// Contains for a specific point in the current Layer's 'points' field various
-// additional information for said point needed to perform "Triangle
-// inequality"-accelerated K-means clustering.
+// Elkan 2003 "Carr[ied]... information" for a specific point in self.points.
 //
-// Intended use case is storing in a vector where each value ina the vector
-// corresponds to the Point with matching index in the current Layer's kmeans
-// field.
+// Used to accelerate k-means clustering via the paper's Triangle Inequality
+// (abrv. 'TI' here) based optimized algorithm.
 //
+// Primary use case: passing various distance 'bounds' (both upper and lower) from
+// one k-means iteration to the next.
 // (see Elkan 2003 for more details)
+//
+// NOTE: Includes some additional fields besides _just_ the bounds. (E.g. a
+// field to help lookup the currently assigned centroid for the point).
 #[derive(Debug, Clone)]
-struct TriangleInequalityHelper {
+struct TIBounds {
     // The index into self.kmeans for the currently assigned centroid "nearest
     // neighbor" (i.e. c(x) in the paper) for this specifed point.
     assigned_centroid_idx: usize,
@@ -96,7 +98,7 @@ impl Layer {
         // upper bounds u(x) = min_c d(x,c).
         // """
         let triangle_accelerate_todo_replaceme = true;
-        let mut triangle_inequality_helpers: Vec<TriangleInequalityHelper> = Vec::new();
+        let mut triangle_inequality_helpers: Vec<TIBounds> = Vec::new();
         if triangle_accelerate_todo_replaceme {
             let mut initialization_loss = 0f32;
             for (helper, separation_distance) in self
@@ -106,7 +108,7 @@ impl Layer {
                 // TODO should we track loss from distance calcs at this part??
                 .map(|nearest_neighbor| {
                     (
-                        TriangleInequalityHelper {
+                        TIBounds {
                             // "c(x)"'s index in self.kmeans()
                             assigned_centroid_idx: nearest_neighbor.0,
                             // "l(x,c)"
@@ -269,10 +271,10 @@ impl Layer {
     /// generally writing some unit tests.
     fn cluster_step_triaccl(
         &self,
-        triangle_inequality_helpers: &Vec<TriangleInequalityHelper>,
+        triangle_inequality_helpers: &Vec<TIBounds>,
     ) -> (
-        Vec<Histogram>,                /* K centroids */
-        Vec<TriangleInequalityHelper>, /* Updated Triangle Inequality Helpers */
+        Vec<Histogram>, /* K centroids */
+        Vec<TIBounds>,  /* Updated Triangle Inequality Helpers */
     ) {
         use rayon::iter::IndexedParallelIterator;
         use rayon::iter::IntoParallelRefIterator;
@@ -408,20 +410,20 @@ impl Layer {
         // the step. (I _think_ this would allow us to avoid doing a bunch
         // of clones() throughout this step.) Depends on how Rayon works
         // though; might not actually be possible (TBD)
-        let mut step_3_working_points: HashMap<usize, (&Histogram, TriangleInequalityHelper)> =
-            self.points()
-                .iter()
-                .enumerate()
-                .map(|(point_i, point_h)| {
-                    (
-                        point_i,
-                        point_h,
-                        triangle_inequality_helpers[point_i].clone(),
-                    )
-                })
-                .filter(|(point_i, _, _)| !step_2_excluded_points.contains(point_i))
-                .map(|(point_i, point_h, helper)| (point_i, (point_h, helper)))
-                .collect();
+        let mut step_3_working_points: HashMap<usize, (&Histogram, TIBounds)> = self
+            .points()
+            .iter()
+            .enumerate()
+            .map(|(point_i, point_h)| {
+                (
+                    point_i,
+                    point_h,
+                    triangle_inequality_helpers[point_i].clone(),
+                )
+            })
+            .filter(|(point_i, _, _)| !step_2_excluded_points.contains(point_i))
+            .map(|(point_i, point_h, helper)| (point_i, (point_h, helper)))
+            .collect();
 
         // Note: looping over *all centers* here in the outer loop (as mentioned above). NOT over the points / over anything in
         // step_3_working_points yet. (That all happens instead inside the parallelized code down below inside this outer loop.)
@@ -457,10 +459,10 @@ impl Layer {
                 // false. Otherwise, d(x, c(x)) = u(x).
                 .map(|(point_i, point_h, helper)| {
                     let possibly_updated_helper_and_distance_from_point_to_current_centroid: (
-                        TriangleInequalityHelper,
+                        TIBounds,
                         f32,
                     ) = if helper.stale_upper_bound {
-                        let mut h: TriangleInequalityHelper = helper.clone();
+                        let mut h: TIBounds = helper.clone();
                         let distance_point_to_current_centroid: f32 =
                             self.emd(point_h, &self.kmeans()[helper.assigned_centroid_idx]);
                         h.upper_bound = distance_point_to_current_centroid;
@@ -530,7 +532,7 @@ impl Layer {
         // Merge the updated helper values back with the original vector we got
         // at the start of the function (which has entries for *all* points, not
         // just the ones bieng updated in step 3).
-        let step_4_helpers: Vec<&TriangleInequalityHelper> = triangle_inequality_helpers
+        let step_4_helpers: Vec<&TIBounds> = triangle_inequality_helpers
             .iter()
             .enumerate()
             .map(|(point_i, original_helper)| {
@@ -593,8 +595,7 @@ impl Layer {
         // 5. For each point x and center c, assign
         //    l(x,c) = max{ l(x, c) - d(c, m(c)), 0 }
         // """
-        let mut step_5_helpers: Vec<TriangleInequalityHelper> =
-            step_4_helpers.into_iter().cloned().collect();
+        let mut step_5_helpers: Vec<TIBounds> = step_4_helpers.into_iter().cloned().collect();
         for helper in &mut step_5_helpers {
             helper.lower_bounds = helper
                 .lower_bounds
@@ -624,7 +625,7 @@ impl Layer {
         //    r(x) = true
         // """
         // TODO refactor probably can get away with continuing to borrow here
-        let mut step_6_helpers: Vec<TriangleInequalityHelper> = step_5_helpers;
+        let mut step_6_helpers: Vec<TIBounds> = step_5_helpers;
         for helper in &mut step_6_helpers {
             // 'm(c(x))'
             let next_center = &centroids[helper.assigned_centroid_idx];
