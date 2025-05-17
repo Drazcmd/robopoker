@@ -556,6 +556,7 @@ impl Layer {
                     .collect()
             })
             .collect();
+        let mut centroids: Vec<Histogram> = vec![];
         for points in points_assigned_per_center.iter() {
             let mut next_mean = points[0].clone();
             for point in points.into_iter().skip(1) {
