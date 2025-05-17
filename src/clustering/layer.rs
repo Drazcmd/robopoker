@@ -97,7 +97,6 @@ impl Layer {
         let triangle_accelerate_todo_replaceme = true;
         let mut triangle_inequality_helpers: Vec<TIBounds> = Vec::new();
         if triangle_accelerate_todo_replaceme {
-            let mut initialization_loss = 0f32;
             for (helper, separation_distance) in self
                 .points()
                 .iter()
@@ -127,14 +126,7 @@ impl Layer {
                 .collect::<Vec<_>>()
             {
                 triangle_inequality_helpers.push(helper);
-                initialization_loss =
-                    initialization_loss + separation_distance * separation_distance
             }
-            log::debug!(
-                "{:<32}{:<32}",
-                "Helper setup: abstraction cluster RMS error",
-                (initialization_loss / self.points().len() as f32).sqrt()
-            );
         }
         for _ in 0..t {
             log::debug!("{:<32}{:<32}", "Starting training iteration:", t);
