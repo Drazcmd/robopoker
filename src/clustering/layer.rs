@@ -566,11 +566,12 @@ impl Layer {
         // let mut loss = 0f32;
         let mut centroids: Vec<Histogram> = vec![];
         for points in points_assigned_per_center.iter() {
-            let mut next_mean = points[0].clone();
+            let mut mean_of_assigned_points = points[0].clone();
             for point in points.into_iter().skip(1) {
-                next_mean.absorb(point);
+                mean_of_assigned_points.absorb(point);
             }
-            centroids.push(next_mean.clone());
+            let next_centroid = mean_of_assigned_points;
+            centroids.push(next_centroid);
         }
 
         log::info!("{:<32}", " - STEP 5 (remove me later)");
