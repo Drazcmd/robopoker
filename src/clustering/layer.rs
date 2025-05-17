@@ -568,6 +568,8 @@ impl Layer {
                     .collect()
             })
             .collect();
+        // TODO: Should calculate and report the loss at this step probably?
+        // let mut loss = 0f32;
         let mut centroids: Vec<Histogram> = vec![];
         for points in points_assigned_per_center.iter() {
             let mut next_mean = points[0].clone();
