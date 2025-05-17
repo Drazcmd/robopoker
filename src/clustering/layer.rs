@@ -95,30 +95,34 @@ impl Layer {
         // calculations. Each time is computed, set l(x,c) = d(x,c). Assign
         // upper bounds u(x) = min_c d(x,c).
         // """
-        let triangle_inequality_helpers: Vec<TriangleInequalityHelper> = self
-            .points()
-            .iter()
-            .map(|x| self.neighborhood(x))
-            .map(|nearest_neighbor| TriangleInequalityHelper {
-                // "c(x)"'s index in self.kmeans()
-                assigned_centroid_idx: nearest_neighbor.0,
-                // "l(x,c)"
-                // "Set the lower bound l(x,c) = 0 for each point x and center c"
-                lower_bounds: vec![0.0; self.street().k()],
-                // "u(x)"
-                // "Assign upper bounds x(x) = min_c d(x,c)" (which by
-                //  definition is the distance of the nearest neighbor at
-                //  this point)
-                upper_bound: nearest_neighbor.1,
-                // "r(x)"
-                // (Not explicitly mentioned during the pre-step. But, we know that
-                // when starting out we literally _just_computed all the distances,
-                // so it should theoretically be safe to leave 'false' here.)
-                stale_upper_bound: false,
-            })
-            .collect();
-
         let triangle_accelerate_todo_replaceme = true;
+        let mut triangle_inequality_helpers: Vec<TriangleInequalityHelper> = Vec::new();
+        if triangle_accelerate_todo_replaceme {
+            for helper in self
+                .points()
+                .iter()
+                .map(|x| self.neighborhood(x))
+                .map(|nearest_neighbor| TriangleInequalityHelper {
+                    // "c(x)"'s index in self.kmeans()
+                    assigned_centroid_idx: nearest_neighbor.0,
+                    // "l(x,c)"
+                    // "Set the lower bound l(x,c) = 0 for each point x and center c"
+                    lower_bounds: vec![0.0; self.street().k()],
+                    // "u(x)"
+                    // "Assign upper bounds x(x) = min_c d(x,c)" (which by
+                    //  definition is the distance of the nearest neighbor at
+                    //  this point)
+                    upper_bound: nearest_neighbor.1,
+                    // "r(x)"
+                    // (Not explicitly mentioned during the pre-step. But, we know that
+                    // when starting out we literally _just_computed all the distances,
+                    // so it should theoretically be safe to leave 'false' here.)
+                    stale_upper_bound: false,
+                })
+                .collect::<Vec<_>>() {
+                triangle_inequality_helpers.push(helper);
+            }
+        }
         for _ in 0..t {
             log::debug!("{:<32}{:<32}", "Starting training iteration:", t);
 
@@ -515,9 +519,15 @@ impl Layer {
             .collect();
 
         // Step 4: For each center c, let m(c) be the mean of the points
-        // assigned to c
+        // assigned to c.
         //
-        // (This becomes the new replacement centroid!)
+        // This becomes the new centroid for the next step:
+        // """
+        // Step 4 computes the new lcoation fo each cluster center c.
+        // Setting m(c) to be the mean of the points assigned to c is
+        // appropriate when the distance metric in use is Euclidean distance.
+        // Otherwise m(c) may be defined differently...
+        // """
         //
         // Note also:
         // """
