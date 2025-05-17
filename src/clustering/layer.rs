@@ -23,15 +23,11 @@ pub struct Layer {
     points: Vec<Histogram>, // positioned by Isomorphism
 }
 
-// Elkan 2003 "Carr[ied]... information" between k-means iterations for a
-// specific point in self.points.
+// "Carr[ied]... information" between k-means iterations for a specific point
+// in self.points. See Elkan 2003 for more details.
 //
 // Used to accelerate k-means clustering via the paper's Triangle Inequality
 // (abrv. 'TI' here) based optimized algorithm.
-//
-// Primary use case: passing various distance 'bounds' (both upper and lower) from
-// one k-means iteration to the next.
-// (see Elkan 2003 for more details)
 //
 // NOTE: Includes some additional fields besides _just_ the bounds. (E.g. a
 // field to help lookup the currently assigned centroid for the point).
