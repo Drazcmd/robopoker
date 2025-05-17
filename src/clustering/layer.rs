@@ -257,9 +257,11 @@ impl Layer {
         use rayon::iter::ParallelIterator;
 
         let k = self.street().k();
-        // TODO: decide whether to start using these
-        // let n = self.points().len();
+        // TODO start tracking loss like in the other approach!
         // let mut loss = 0f32;
+
+        // TODO: refactor / start using some things like this
+        // let n = self.points().len();
 
         // ****
         // The following 7-step algorithm is taken from Elkan (2003). It uses
@@ -554,13 +556,12 @@ impl Layer {
                     .collect()
             })
             .collect();
-        let mut mean_of_points_assigned_per_center: Vec<Histogram> = vec![];
         for points in points_assigned_per_center.iter() {
             let mut next_mean = points[0].clone();
             for point in points.into_iter().skip(1) {
                 next_mean.absorb(point);
             }
-            mean_of_points_assigned_per_center.push(next_mean.clone());
+            centroids.push(next_mean.clone());
         }
 
         log::info!("{:<32}", " - STEP 5 (remove me later)");
@@ -582,7 +583,7 @@ impl Layer {
                         // 'c'
                         &self.kmeans()[center_c_idx],
                         // 'm(c)'
-                        &mean_of_points_assigned_per_center[center_c_idx],
+                        &centroids[center_c_idx],
                     );
                     f32::max(
                         // l(x,c) - d(c, m(c))
@@ -603,7 +604,7 @@ impl Layer {
         let mut step_6_helpers: Vec<TriangleInequalityHelper> = step_5_helpers;
         for helper in &mut step_6_helpers {
             // 'm(c(x))'
-            let next_center = &mean_of_points_assigned_per_center[helper.assigned_centroid_idx];
+            let next_center = &centroids[helper.assigned_centroid_idx];
             // 'c(x)'
             let current_center = &self.kmeans()[helper.assigned_centroid_idx];
             // u(x) = u(x) + d(m(c(x)), c(x))
@@ -616,7 +617,7 @@ impl Layer {
         // i.e. Step 7:
         // "7. Replace each center c by m(c)"
         log::info!("{:<32}", " - STEP 7 (remove me later)");
-        return (mean_of_points_assigned_per_center, step_6_helpers);
+        return (centroids, step_6_helpers);
     }
 
     /// wrawpper for distance metric calculations
