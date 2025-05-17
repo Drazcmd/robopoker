@@ -260,6 +260,13 @@ impl Layer {
     /// determining up to K * N optimal transport calculations and
     /// taking the nearest neighbor, using triangle inequalities
     /// where possible to skip performing calculations
+    ///
+    /// TODO: This is currently entirely untested (aside from a
+    /// couple of manual runs). Before replacing the original code
+    /// we should first prove this works by running it against some
+    /// of the datasets in the paper (Elkan (2003)) and verifying
+    /// that we can replicate its results - as well as just
+    /// generally writing some unit tests.
     fn cluster_step_triaccl(
         &self,
         triangle_inequality_helpers: &Vec<TriangleInequalityHelper>,
