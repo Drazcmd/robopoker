@@ -97,31 +97,26 @@ impl Layer {
         let triangle_accelerate_todo_replaceme = true;
         let mut triangle_inequality_helpers: Vec<TIBounds> = Vec::new();
         if triangle_accelerate_todo_replaceme {
-            for (helper, separation_distance) in self
+            for helper in self
                 .points()
                 .iter()
                 .map(|x| self.neighborhood(x))
-                .map(|nearest_neighbor| {
-                    (
-                        TIBounds {
-                            // "c(x)"'s index in self.kmeans()
-                            assigned_centroid_idx: nearest_neighbor.0,
-                            // "l(x,c)"
-                            // "Set the lower bound l(x,c) = 0 for each point x and center c"
-                            lower_bounds: vec![0.0; self.street().k()],
-                            // "u(x)"
-                            // "Assign upper bounds x(x) = min_c d(x,c)" (which by
-                            //  definition is the distance of the nearest neighbor at
-                            //  this point)
-                            upper_bound: nearest_neighbor.1,
-                            // "r(x)"
-                            // (Not explicitly mentioned during the pre-step. But, we know that
-                            // when starting out we literally _just_computed all the distances,
-                            // so it should theoretically be safe to leave 'false' here.)
-                            stale_upper_bound: false,
-                        },
-                        nearest_neighbor.1,
-                    )
+                .map(|nearest_neighbor| TIBounds {
+                    // "c(x)"'s index in self.kmeans()
+                    assigned_centroid_idx: nearest_neighbor.0,
+                    // "l(x,c)"
+                    // "Set the lower bound l(x,c) = 0 for each point x and center c"
+                    lower_bounds: vec![0.0; self.street().k()],
+                    // "u(x)"
+                    // "Assign upper bounds x(x) = min_c d(x,c)" (which by
+                    //  definition is the distance of the nearest neighbor at
+                    //  this point)
+                    upper_bound: nearest_neighbor.1,
+                    // "r(x)"
+                    // (Not explicitly mentioned during the pre-step. But, we know that
+                    // when starting out we literally _just_computed all the distances,
+                    // so it should theoretically be safe to leave 'false' here.)
+                    stale_upper_bound: false,
                 })
                 .collect::<Vec<_>>()
             {
@@ -568,7 +563,6 @@ impl Layer {
                     .collect()
             })
             .collect();
-        // TODO: Should calculate and report the loss at this step probably?
         // let mut loss = 0f32;
         let mut centroids: Vec<Histogram> = vec![];
         for points in points_assigned_per_center.iter() {
