@@ -102,7 +102,6 @@ impl Layer {
                 .points()
                 .iter()
                 .map(|x| self.neighborhood(x))
-                // TODO should we track loss from distance calcs at this part??
                 .map(|nearest_neighbor| {
                     (
                         TIBounds {
