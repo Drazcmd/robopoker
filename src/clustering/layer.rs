@@ -95,7 +95,7 @@ impl Layer {
         // upper bounds u(x) = min_c d(x,c).
         // """
         let triangle_accelerate_todo_replaceme = true;
-        let mut triangle_inequality_helpers: Vec<TIBounds> = Vec::new();
+        let mut ti_helpers: Vec<TIBounds> = Vec::new();
         if triangle_accelerate_todo_replaceme {
             for helper in self
                 .points()
@@ -120,7 +120,7 @@ impl Layer {
                 })
                 .collect::<Vec<_>>()
             {
-                triangle_inequality_helpers.push(helper);
+                ti_helpers.push(helper);
             }
         }
         for _ in 0..t {
@@ -128,12 +128,12 @@ impl Layer {
 
             if triangle_accelerate_todo_replaceme {
                 let (ref next_kmeans, ref next_helpers) =
-                    self.compute_next_centroids_triaccl(&triangle_inequality_helpers);
+                    self.compute_next_centroids_ti_accl(&ti_helpers);
 
                 let ref mut mut_kmeans = self.kmeans();
                 *mut_kmeans = next_kmeans;
 
-                let ref mut mut_helpers = &triangle_inequality_helpers;
+                let ref mut mut_helpers = &ti_helpers;
                 *mut_helpers = next_helpers
             } else {
                 let ref next_kmeans = self.compute_next_centroids();
@@ -252,9 +252,9 @@ impl Layer {
     /// of the datasets in the paper (Elkan (2003)) and verifying
     /// that we can replicate its results - as well as just
     /// generally writing some unit tests.
-    fn compute_next_centroids_triaccl(
+    fn compute_next_centroids_ti_accl(
         &self,
-        triangle_inequality_helpers: &Vec<TIBounds>,
+        ti_helpers: &Vec<TIBounds>,
     ) -> (
         Vec<Histogram>, /* K centroids */
         Vec<TIBounds>,  /* Updated Triangle Inequality Helpers */
@@ -335,7 +335,7 @@ impl Layer {
         // [but c]omputationally step (2) is beneficial because if it
         // eliminates a point x from further consideration, then comparing u
         // (x) to l(x,c) for every c separately is not necessary."
-        let step_2_excluded_points: Vec<usize> = triangle_inequality_helpers
+        let step_2_excluded_points: Vec<usize> = ti_helpers
             .iter()
             .enumerate()
             .filter(|(_x, helper)| {
@@ -397,13 +397,7 @@ impl Layer {
             .points()
             .iter()
             .enumerate()
-            .map(|(point_i, point_h)| {
-                (
-                    point_i,
-                    point_h,
-                    triangle_inequality_helpers[point_i].clone(),
-                )
-            })
+            .map(|(point_i, point_h)| (point_i, point_h, ti_helpers[point_i].clone()))
             .filter(|(point_i, _, _)| !step_2_excluded_points.contains(point_i))
             .map(|(point_i, point_h, helper)| (point_i, (point_h, helper)))
             .collect();
@@ -515,7 +509,7 @@ impl Layer {
         // Merge the updated helper values back with the original vector we got
         // at the start of the function (which has entries for *all* points, not
         // just the ones bieng updated in step 3).
-        let step_4_helpers: Vec<&TIBounds> = triangle_inequality_helpers
+        let step_4_helpers: Vec<&TIBounds> = ti_helpers
             .iter()
             .enumerate()
             .map(|(point_i, original_helper)| {
