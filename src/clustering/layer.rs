@@ -108,7 +108,7 @@ impl Layer {
                     // "Set the lower bound l(x,c) = 0 for each point x and center c"
                     lower_bounds: vec![0.0; self.street().k()],
                     // "u(x)"
-                    // "Assign upper bounds x(x) = min_c d(x,c)" (which by
+                    // "Assign upper bounds u(x) = min_c d(x,c)" (which by
                     //  definition is the distance of the nearest neighbor at
                     //  this point)
                     upper_bound: nearest_neighbor.1,
@@ -123,6 +123,25 @@ impl Layer {
                 ti_helpers.push(helper);
             }
         }
+
+        // WIP: Need to verify results are actually the same (and that it
+        // really speeds things up in practice). As per the paper:
+        //
+        // """
+        // We want the accelerated k-means algorithm to be usable wherever the
+        // standard algorithm is used. Therefore, we need the accelerated
+        // algorithm to satisfy three properties. First, it should be able to
+        // start with any initial centers, so that all existing
+        // initialization methods can continue to be used. Second, given the
+        // same initial centers, it should al- ways produce exactly the same
+        // final centers as the standard algorithm. Third, it should be able
+        // to use any black-box distance metric, so it should not rely for
+        // example on optimizations specific to Euclidean distance.
+        //
+        // Our algorithm in fact satisfies a condition stronger than the
+        // second one above: after each iteration, it produces the same set
+        // of center locations as the standard k-means method.
+        // """
         for _ in 0..t {
             log::debug!("{:<32}{:<32}", "Starting training iteration:", t);
 
