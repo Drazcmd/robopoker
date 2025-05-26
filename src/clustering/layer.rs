@@ -412,6 +412,13 @@ impl Layer {
         // the step. (I _think_ this would allow us to avoid doing a bunch
         // of clones() throughout this step.) Depends on how Rayon works
         // though; might not actually be possible (TBD)
+        //
+        // Note: technically we're not _quite_ doing what the paper says. We
+        // should really be doing vectorized code in the inner loops, whereas
+        // right now we're using rayon parallelization. This is the best we
+        // can do for now though given that we're using fancy `Histogram`s
+        // which need more complicated math to compute the distance than if
+        // we were just doing standard euclidian distance calculations).
         let mut step_3_working_points: HashMap<usize, (&Histogram, TIBounds)> = self
             .points()
             .iter()
