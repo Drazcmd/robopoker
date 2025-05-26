@@ -77,8 +77,8 @@ impl Layer {
     /// primary clustering algorithm loop
     fn cluster(mut self) -> Self {
         log::info!("{:<32}{:<32}", "initialize  kmeans", self.street());
-        let ref mut init = self.init();
-        let ref mut last = self.kmeans;
+        let init = &mut self.init();
+        let last = &mut self.kmeans;
         std::mem::swap(init, last);
         log::info!("{:<32}{:<32}", "clustering  kmeans", self.street());
         let t = self.street().t();
@@ -149,10 +149,10 @@ impl Layer {
                 let (ref next_kmeans, ref next_helpers) =
                     self.compute_next_centroids_ti_accl(&ti_helpers);
 
-                let ref mut mut_kmeans = self.kmeans();
+                let mut_kmeans = &mut self.kmeans();
                 *mut_kmeans = next_kmeans;
 
-                let ref mut mut_helpers = &ti_helpers;
+                let mut_helpers = &mut (&ti_helpers);
                 *mut_helpers = next_helpers
             } else {
                 let ref next_kmeans = self.compute_next_centroids();
@@ -273,7 +273,7 @@ impl Layer {
     /// generally writing some unit tests.
     fn compute_next_centroids_ti_accl(
         &self,
-        ti_helpers: &Vec<TIBounds>,
+        ti_helpers: &[TIBounds],
     ) -> (
         Vec<Histogram>, /* K centroids */
         Vec<TIBounds>,  /* Updated Triangle Inequality Helpers */
@@ -441,9 +441,9 @@ impl Layer {
                 // * STEP 3 FIRST HALF PER CENTROID: SETUP AND FILTERING (3.i, 3.ii, 3.iii) *
                 // ****
                 // Step 3 (i): ... [where] c != c(x)
-                .filter(|(_, _, helper)| center_c_idx != (*helper).assigned_centroid_idx)
+                .filter(|(_, _, helper)| center_c_idx != helper.assigned_centroid_idx)
                 // Step 3 (ii): ... [where] u(x) > l(x, c)
-                .filter(|(_, _, helper)| helper.upper_bound > (*helper).lower_bounds[center_c_idx])
+                .filter(|(_, _, helper)| helper.upper_bound > helper.lower_bounds[center_c_idx])
                 // Step 3 (iii): ... [where] u(x) >  1/2 d(c(x), c)
                 //
                 // Note also from the paper:
@@ -451,9 +451,8 @@ impl Layer {
                 // u(x) and c(x) may change during the execution of step (3)"
                 .filter(|(_, _, helper)| {
                     let distance_to_midpoint_of_current_centroid_and_center_c =
-                        0.5 * self.emd(&self.kmeans[(*helper).assigned_centroid_idx], center_c);
-                    return (*helper).upper_bound
-                        > distance_to_midpoint_of_current_centroid_and_center_c;
+                        0.5 * self.emd(&self.kmeans[helper.assigned_centroid_idx], center_c);
+                    helper.upper_bound > distance_to_midpoint_of_current_centroid_and_center_c
                 })
                 // ****
                 // * STEP 3 SECOND HALF PER CENTROID: DISTANCE COMPUTATIONS AND UPDATES (3.a and 3.b) *
@@ -578,7 +577,7 @@ impl Layer {
                 step_4_helpers
                     .iter()
                     .enumerate()
-                    .filter(|(_point_i, helper)| (*helper).assigned_centroid_idx == center_c_idx)
+                    .filter(|(_point_i, helper)| helper.assigned_centroid_idx == center_c_idx)
                     .map(|(point_i, _)| &self.points()[point_i])
                     .collect()
             })
@@ -587,11 +586,11 @@ impl Layer {
         let mut centroids: Vec<Histogram> = vec![];
         for points in points_assigned_per_center.iter() {
             let mut mean_of_assigned_points = points[0].clone();
-            if points.len() < 1 {
+            if points.is_empty() {
                 // TODO: Figure out what to do for the centroid if there's no poitns assigned to it.
                 log::error!("No points assigned to current centroid. This is currently an edge case we are unable to resolve; for more details see https://github.com/krukah/robopoker/issues/34#issuecomment-2860641178")
             }
-            for point in points.into_iter().skip(1) {
+            for point in points.iter().skip(1) {
                 mean_of_assigned_points.absorb(point);
             }
             let next_centroid = mean_of_assigned_points;
@@ -641,7 +640,7 @@ impl Layer {
             // 'c(x)'
             let current_center = &self.kmeans()[helper.assigned_centroid_idx];
             // u(x) = u(x) + d(m(c(x)), c(x))
-            helper.upper_bound = helper.upper_bound + self.emd(&next_center, &current_center);
+            helper.upper_bound += self.emd(next_center, current_center);
             // r(x) = true
             helper.stale_upper_bound = true;
         }
@@ -650,7 +649,7 @@ impl Layer {
         // i.e. Step 7:
         // "7. Replace each center c by m(c)"
         log::info!("{:<32}", " - STEP 7 (remove me later)");
-        return (centroids, step_6_helpers);
+        (centroids, step_6_helpers)
     }
 
     /// wrawpper for distance metric calculations
