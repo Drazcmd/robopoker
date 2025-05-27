@@ -278,6 +278,9 @@ impl Layer {
         Vec<Histogram>, /* K centroids */
         Vec<TIBounds>,  /* Updated Triangle Inequality Helpers */
     ) {
+        // TODO: panic if the length of ti_helpers doesn't match the length of
+        // self.points
+
         use rayon::iter::IndexedParallelIterator;
         use rayon::iter::IntoParallelRefIterator;
         use rayon::iter::ParallelIterator;
