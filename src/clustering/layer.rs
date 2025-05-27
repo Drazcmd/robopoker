@@ -452,6 +452,13 @@ impl Layer {
                 // "Condition (iii) inside step (3) is beneficial despite step (2), becaus
                 // u(x) and c(x) may change during the execution of step (3)"
                 .filter(|(_, _, helper)| {
+
+                    // TODO: WE ARE LIKELY DOING DISTANCE CALCULATIONS HERE
+                    // FOR NO REASON. During step 1 we already computed d
+                    // (c, c') for all centers c and c'. (Not certain it's
+                    // actually this step slowing us down though - need to do
+                    // some benchmarking)
+
                     let distance_to_midpoint_of_current_centroid_and_center_c =
                         0.5 * self.emd(&self.kmeans[helper.assigned_centroid_idx], center_c);
                     helper.upper_bound > distance_to_midpoint_of_current_centroid_and_center_c
