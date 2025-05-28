@@ -428,6 +428,25 @@ impl Layer {
             "{:<32}",
             " - STEP 3, getting working points (remove me later)"
         );
+        // TODO: THIS PART RIGHT HERE MAY BE MASSIVELY SLOWING DOWN EXECUTION.
+        // INFO logs appear roughly as follows:
+        // ...
+        // 09:53:09 - STEP 1
+        // 09:53:09 - STEP 3
+        // 09:53:09 - STEP 3, getting working points
+        // 10:21:54 - STEP 3, starting outer loop
+        // 10:21:54 - STEP 3, outer loop # 0  
+        // 10:21:55 - STEP 3, outer loop # 1  
+        // 10:21:55 - STEP 3, outer loop # 2  
+        // ...
+        // 10:23:40 - STEP 3, outer loop # 142
+        // 10:23:41 - STEP 3, outer loop # 143
+        // 10:23:41 - STEP 4
+        // 10:23:49 - STEP 5
+        // 10:24:52 - STEP 7
+        // 10:24:52 - STEP 1 (remove me later)
+        // ...
+        //
         let mut step_3_working_points: HashMap<usize, (&Histogram, TIBounds)> = self
             .points()
             .iter()
