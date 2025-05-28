@@ -599,7 +599,7 @@ impl Layer {
             })
             .collect();
         // let mut loss = 0f32;
-        let mut centroids: Vec<Histogram> = vec![];
+        let mut new_centroids: Vec<Histogram> = vec![];
         for points in points_assigned_per_center.iter() {
             let mut mean_of_assigned_points = points[0].clone();
             if points.is_empty() {
@@ -610,7 +610,7 @@ impl Layer {
                 mean_of_assigned_points.absorb(point);
             }
             let next_centroid = mean_of_assigned_points;
-            centroids.push(next_centroid);
+            new_centroids.push(next_centroid);
         }
 
         log::info!("{:<32}", " - STEP 5 (remove me later)");
@@ -619,6 +619,23 @@ impl Layer {
         // 5. For each point x and center c, assign
         //    l(x,c) = max{ l(x, c) - d(c, m(c)), 0 }
         // """
+        //
+        // Optimization: compute distance from each centroid to the its
+        // replacement *one time* rather than inside the per-point loops of
+        // steps 5 and 6.
+        // (Note: this is highly differant than step 1! This isn't computing
+        // each centroid to *all* the replacements, only *its* specific
+        // replacement (i.e. the one with the same index). Hence it's a
+        // Vec<f32> of length k, NOT a Vec<Vec<f32>>.
+        //
+        // TODO: double check that distance is equivalent in either direction.
+        // (If not, would need to e.g. compute a Vec<(f32, f32)> instead.)
+        let new_centroid_movements: Vec<f32> = new_centroids
+            .par_iter()
+            .zip(&self.kmeans)
+            .map(|(old_center, new_center)| self.emd(old_center, new_center))
+            .collect();
+
         let mut step_5_helpers: Vec<TIBounds> = step_4_helpers.into_iter().cloned().collect();
         for helper in &mut step_5_helpers {
             helper.lower_bounds = helper
@@ -630,12 +647,7 @@ impl Layer {
                     // (Must do a distance calc since m(c) is new / not in the
                     // original set of centroids we computed distances for at
                     // the start)
-                    let dist_center_and_new_center = self.emd(
-                        // 'c'
-                        &self.kmeans()[center_c_idx],
-                        // 'm(c)'
-                        &centroids[center_c_idx],
-                    );
+                    let dist_center_and_new_center = &new_centroid_movements[center_c_idx];
                     f32::max(
                         // l(x,c) - d(c, m(c))
                         lower_bound - dist_center_and_new_center,
@@ -654,15 +666,11 @@ impl Layer {
         // TODO refactor probably can get away with continuing to borrow here
         let mut step_6_helpers: Vec<TIBounds> = step_5_helpers;
         for helper in &mut step_6_helpers {
-            // 'm(c(x))'
-            let next_center = &centroids[helper.assigned_centroid_idx];
-            // 'c(x)'
-            let current_center = &self.kmeans()[helper.assigned_centroid_idx];
             // u(x) = u(x) + d(m(c(x)), c(x))
-            // (Must do a distance calc since m(c) is new / not in the
-            // original set of centroids we computed distances for at the
-            // start)
-            helper.upper_bound += self.emd(next_center, current_center);
+            // TODO: VERIFY THAT d(m(c(x)), c(x)) = d(c(x), m(c(x))).
+            // IF NOT THEN THIS WILL BE INCORRECT.
+            let dist_center_and_new_center = &new_centroid_movements[helper.assigned_centroid_idx];
+            helper.upper_bound += dist_center_and_new_center;
             // r(x) = true
             helper.stale_upper_bound = true;
         }
@@ -671,7 +679,7 @@ impl Layer {
         // i.e. Step 7:
         // "7. Replace each center c by m(c)"
         log::info!("{:<32}", " - STEP 7 (remove me later)");
-        (centroids, step_6_helpers)
+        (new_centroids, step_6_helpers)
     }
 
     /// wrawpper for distance metric calculations
