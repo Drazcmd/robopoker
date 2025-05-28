@@ -307,9 +307,6 @@ impl Layer {
         log::info!("{:<32}", " - STEP 1 (remove me later)");
 
         // Step 1 (first half): d(c, c') for all centers c and c'
-        // (TODO: See if we can speed this up by calculating it for only half
-        // of the vector and mirroring, plus by hardcoding the value for
-        // a comparison between a centroid and itself.)
         let centroid_to_centroid_distances: Vec<Vec<f32>> = self
             .kmeans()
             .iter()
