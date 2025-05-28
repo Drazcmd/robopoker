@@ -446,9 +446,8 @@ impl Layer {
             .points()
             .iter()
             .enumerate()
-            .map(|(point_i, point_h)| (point_i, point_h, ti_helpers[point_i].clone()))
-            .filter(|(point_i, _, _)| !step_2_excluded_points.contains(point_i))
-            .map(|(point_i, point_h, helper)| (point_i, (point_h, helper)))
+            .filter(|(point_i, _)| !step_2_excluded_points.contains(point_i))
+            .map(|(point_i, point_h)| (point_i, (point_h, ti_helpers[point_i].clone())))
             .collect();
 
         // Note: looping over *all centers* here in the outer loop
