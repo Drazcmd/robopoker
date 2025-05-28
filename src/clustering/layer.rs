@@ -640,6 +640,9 @@ impl Layer {
         for helper in &mut step_5_helpers {
             helper.lower_bounds = helper
                 .lower_bounds
+                // TODO: investigate whether we should just do this single threaded
+                // given we're no longer doing any emd calculations here.
+                // (And/or consider doing a vectorized update.)
                 .par_iter()
                 .enumerate()
                 .map(|(center_c_idx, lower_bound)| {
