@@ -619,6 +619,9 @@ impl Layer {
                 .enumerate()
                 .map(|(center_c_idx, lower_bound)| {
                     // d(c, m(c))
+                    // (Must do a distance calc since m(c) is new / not in the
+                    // original set of centroids we computed distances for at
+                    // the start)
                     let dist_center_and_new_center = self.emd(
                         // 'c'
                         &self.kmeans()[center_c_idx],
@@ -648,6 +651,9 @@ impl Layer {
             // 'c(x)'
             let current_center = &self.kmeans()[helper.assigned_centroid_idx];
             // u(x) = u(x) + d(m(c(x)), c(x))
+            // (Must do a distance calc since m(c) is new / not in the
+            // original set of centroids we computed distances for at the
+            // start)
             helper.upper_bound += self.emd(next_center, current_center);
             // r(x) = true
             helper.stale_upper_bound = true;
