@@ -437,10 +437,9 @@ impl Layer {
         // (as mentioned above). NOT over the points / over anything in
         // step_3_working_points yet. (That all happens instead inside the
         // parallelized code down below inside this outer loop.)
-        for (center_c_idx, center_c) in self.kmeans().iter().enumerate
-        ().collect::<Vec<_>>() { let immutable_step_3_working_points =
-        step_3_working_points.clone(); for (point_i, point_h, helper) in
-        immutable_step_3_working_points
+        for (center_c_idx, center_c) in self.kmeans().iter().enumerate().collect::<Vec<_>>() {
+            let immutable_step_3_working_points = step_3_working_points.clone();
+            for (point_i, point_h, helper) in immutable_step_3_working_points
                 .par_iter()
                 .map(|(point_i, histogram_and_helper)| {
                     (point_i, histogram_and_helper.0, &histogram_and_helper.1)
@@ -466,7 +465,7 @@ impl Layer {
                     // affect runtime either way (since we're doing all of
                     // them still in parallel, one per point). We could
                     // alternatively just compute these from scratch without
-                    // slowing things down.
+                    // it slowing things down at all.
                     let dist_between_centroids =
                         &centroid_to_centroid_distances[helper.assigned_centroid_idx][center_c_idx];
                     helper.upper_bound > 0.5 * dist_between_centroids
