@@ -450,6 +450,11 @@ impl Layer {
                 .map(|(point_i, histogram_and_helper)| {
                     (point_i, histogram_and_helper.0, &histogram_and_helper.1)
                 })
+                .inspect(|(point_i, _, _)| {
+                    if **point_i == 1 {
+                        log::info!("{:<32}", " - STEP 3, point 1, post filtering");
+                    }
+                })
                 // ****
                 // * STEP 3 FIRST HALF PER CENTROID: SETUP AND FILTERING (3.i, 3.ii, 3.iii) *
                 // ****
@@ -475,6 +480,11 @@ impl Layer {
                     let dist_between_centroids =
                         &centroid_to_centroid_distances[helper.assigned_centroid_idx][center_c_idx];
                     helper.upper_bound > 0.5 * dist_between_centroids
+                })
+                .inspect(|(point_i, _, _)| {
+                    if **point_i == 1 {
+                        log::info!("{:<32}", " - STEP 3, point 1, post first half per centroid");
+                    }
                 })
                 // ****
                 // * STEP 3 SECOND HALF PER CENTROID: DISTANCE COMPUTATIONS AND UPDATES (3.a and 3.b) *
@@ -510,6 +520,11 @@ impl Layer {
                         possibly_updated_helper_and_distance_from_point_to_current_centroid.0,
                         possibly_updated_helper_and_distance_from_point_to_current_centroid.1,
                     )
+                })
+                .inspect(|(point_i, _, _, _)| {
+                    if **point_i == 1 {
+                        log::info!("{:<32}", "STEP 3, point 1, post second half per centroid");
+                    }
                 })
                 // Step 3.b:
                 // If d(x, c(x)) > l(x,c)
