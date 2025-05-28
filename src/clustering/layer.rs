@@ -307,6 +307,9 @@ impl Layer {
         log::info!("{:<32}", " - STEP 1 (remove me later)");
 
         // Step 1 (first half): d(c, c') for all centers c and c'
+        // (TODO: See if we can speed this up by calculating it for only half
+        // of the vector and mirroring, plus by hardcoding the value for
+        // a comparison between a centroid and itself.)
         let centroid_to_centroid_distances: Vec<Vec<f32>> = self
             .kmeans()
             .iter()
@@ -325,7 +328,7 @@ impl Layer {
 
         // Step 1 (second half): s(c) = (1/2) min_{c'!=c} d(c, c')
         // (i.e. the closest midpoint to another centroid besides itself)
-        let per_centroid_distance_to_closet_midpoint: Vec<f32> = centroid_to_centroid_distances
+        let per_centroid_distance_to_closest_midpoint: Vec<f32> = centroid_to_centroid_distances
             .iter()
             .enumerate()
             .map(|(i, distances_from_centroid_i)| {
@@ -377,7 +380,7 @@ impl Layer {
                 // defeating the purpose of this all. If that's correct
                 // should instead just store the usize in the Helper struct)
                 helper.upper_bound
-                    <= per_centroid_distance_to_closet_midpoint[helper.assigned_centroid_idx]
+                    <= per_centroid_distance_to_closest_midpoint[helper.assigned_centroid_idx]
             })
             .map(|(x, _)| x)
             .collect();
@@ -455,16 +458,9 @@ impl Layer {
                 // "Condition (iii) inside step (3) is beneficial despite step (2), becaus
                 // u(x) and c(x) may change during the execution of step (3)"
                 .filter(|(_, _, helper)| {
-
-                    // TODO: WE ARE LIKELY DOING DISTANCE CALCULATIONS HERE
-                    // FOR NO REASON. During step 1 we already computed d
-                    // (c, c') for all centers c and c'. (Not certain it's
-                    // actually this step slowing us down though - need to do
-                    // some benchmarking)
-
-                    let distance_to_midpoint_of_current_centroid_and_center_c =
-                        0.5 * self.emd(&self.kmeans[helper.assigned_centroid_idx], center_c);
-                    helper.upper_bound > distance_to_midpoint_of_current_centroid_and_center_c
+                    let dist_between_centroids =
+                        &centroid_to_centroid_distances[helper.assigned_centroid_idx][center_c_idx];
+                    helper.upper_bound > 0.5 * dist_between_centroids
                 })
                 // ****
                 // * STEP 3 SECOND HALF PER CENTROID: DISTANCE COMPUTATIONS AND UPDATES (3.a and 3.b) *
