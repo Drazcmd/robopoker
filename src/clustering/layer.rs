@@ -666,7 +666,8 @@ impl Layer {
         //    u(x) = u(x) + d(m(c(x)), c(x))
         //    r(x) = true
         // """
-        // TODO refactor probably can get away with continuing to borrow here
+        // TODO refactor probably can get away with continuing to borrow here.
+        // And/or do using a .map() inside in a .par_iter() etc.
         let mut step_6_helpers: Vec<TIBounds> = step_5_helpers;
         for helper in &mut step_6_helpers {
             // u(x) = u(x) + d(m(c(x)), c(x))
