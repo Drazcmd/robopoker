@@ -424,6 +424,7 @@ impl Layer {
         // we're using fancy `Histogram`s which need more complicated math to
         // compute the distance, as opposd to just doing standard euclidian
         // distance calculations.)
+        log::info!("{:<32}", " - STEP 3, getting working points (remove me later)");
         let mut step_3_working_points: HashMap<usize, (&Histogram, TIBounds)> = self
             .points()
             .iter()
@@ -437,7 +438,9 @@ impl Layer {
         // (as mentioned above). NOT over the points / over anything in
         // step_3_working_points yet. (That all happens instead inside the
         // parallelized code down below inside this outer loop.)
+        log::info!("{:<32}", " - STEP 3, starting outer loop (remove me later)");
         for (center_c_idx, center_c) in self.kmeans().iter().enumerate().collect::<Vec<_>>() {
+            log::info!("{:<24}", "{:<8}", " - STEP 3, outer loop #", center_c_idx);
             let immutable_step_3_working_points = step_3_working_points.clone();
             for (point_i, point_h, helper) in immutable_step_3_working_points
                 .par_iter()
