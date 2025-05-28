@@ -377,6 +377,11 @@ impl Layer {
             })
             .collect();
         log::info!("{:<32}", " - STEP 3 (remove me later)");
+        log::info!(
+            "{:<24}{:<8}",
+            " - (hash set length is",
+            step_2_excluded_points.len()
+        );
 
         // Step 3: For all remaining points x and centers c such that ...
         //
