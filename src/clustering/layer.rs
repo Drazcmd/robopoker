@@ -11,8 +11,8 @@ use crate::Energy;
 use rand::distributions::Distribution;
 use rand::distributions::WeightedIndex;
 use std::collections::BTreeMap;
-
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 type Neighbor = (usize, f32);
 
@@ -357,29 +357,24 @@ impl Layer {
         // [but c]omputationally step (2) is beneficial because if it
         // eliminates a point x from further consideration, then comparing u
         // (x) to l(x,c) for every c separately is not necessary."
-        let step_2_excluded_points: Vec<usize> = ti_helpers
+        let step_2_excluded_points: HashSet<usize> = ti_helpers
             .iter()
             .enumerate()
-            .filter(|(_x, helper)| {
-                // Note: s(c(x)), i.e. passing c(x) into s(c). So it's not the
-                // index of the point itself that we should look up in s, but
-                // rather the index of the _centroid to which the point x is
-                // currently assigned_. Or in other words - the index of x's
-                // current "nearest neighbor".
-                //
-                // TODO: THIS IS OBVIOUSLY CORRECT POST-INITIALIZATION, BUT
-                // RELYING ON IT PAST THAT POINT MEANS WE NEED TO MAKE SURE
-                // THAT THE HELPERS VECTOR CORRECTLY UPDATES THE NEAREST
-                // NEIGHBOR FIELD TO POINT TO THE CURRENT CENTROID FOR EACH
-                // POINT AFTER EACH ITERATION.(... probably need to stop
-                // storing a Neighbor in the struct, since I think we'll end
-                // up having to retake the distances again to do it cleanly,
-                // defeating the purpose of this all. If that's correct
-                // should instead just store the usize in the Helper struct)
-                helper.upper_bound
-                    <= per_centroid_distance_to_closest_midpoint[helper.assigned_centroid_idx]
+            .filter_map(|(x, helper)| {
+                // Grab the s(c(x)) we computed earlier, i.e. passing c
+                // (x) into s(c). So it's not the index of the point itself
+                // that we should look up in s, but rather the index of
+                // the _centroid to which the point x is currently assigned_.
+                // Or in other words - the index of x's current "nearest
+                // neighbor".
+                let step1_s_of_c_of_x =
+                    per_centroid_distance_to_closest_midpoint[helper.assigned_centroid_idx];
+                if helper.upper_bound <= step1_s_of_c_of_x {
+                    Some(x)
+                } else {
+                    None
+                }
             })
-            .map(|(x, _)| x)
             .collect();
         log::info!("{:<32}", " - STEP 3 (remove me later)");
 
@@ -435,9 +430,9 @@ impl Layer {
         // 09:53:09 - STEP 3
         // 09:53:09 - STEP 3, getting working points
         // 10:21:54 - STEP 3, starting outer loop
-        // 10:21:54 - STEP 3, outer loop # 0  
-        // 10:21:55 - STEP 3, outer loop # 1  
-        // 10:21:55 - STEP 3, outer loop # 2  
+        // 10:21:54 - STEP 3, outer loop # 0
+        // 10:21:55 - STEP 3, outer loop # 1
+        // 10:21:55 - STEP 3, outer loop # 2
         // ...
         // 10:23:40 - STEP 3, outer loop # 142
         // 10:23:41 - STEP 3, outer loop # 143
