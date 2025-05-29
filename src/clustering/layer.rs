@@ -112,6 +112,10 @@ impl Layer {
                 // this requires listing rayon as a feature in the
                 // cargo.toml + letting cargo fmt put rayon as a dependency
                 // in the cargo.lock)
+                // TODO: Figure out how to add styling to this while still
+                // keeping it the right length. (.progress_count() doesn't
+                // seem to allow styling, and .progress_with_style() doesn't
+                // seem to allow a length...?)
                 .progress_count(self.points().len().try_into().unwrap())
                 .map(|x| self.neighborhood(x))
                 .map(|nearest_neighbor| TIBounds {
