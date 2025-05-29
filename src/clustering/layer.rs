@@ -108,6 +108,9 @@ impl Layer {
             if parallelize {
                 use rayon::iter::IntoParallelRefIterator;
                 use rayon::iter::ParallelIterator;
+                // TODO: Because we're parallelizing / doing maps, this
+                // doesn't _really_ show us much (0% and then suddenly 100%).
+                // So we might want to remove it.
                 let progress = crate::progress(self.points().len());
                 for helper in self
                     .points()
