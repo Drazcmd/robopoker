@@ -105,8 +105,8 @@ impl Layer {
             for helper in self
                 .points()
                 .par_iter()
-                // Create Indicatif 'progress' bar tied to the parallel
-                // iterator.
+                // Create additional separate Indicatif 'progress' bar tied to
+                // the parallel iterator.
                 // TODO: might want to remove this if we don't want to have
                 // rayon becoming a dependancy for indicatif. Since using
                 // this requires listing rayon as a feature in the
