@@ -98,69 +98,38 @@ impl Layer {
         let triangle_accelerate_todo_replaceme = false;
         let mut ti_helpers: Vec<TIBounds> = Vec::new();
         if triangle_accelerate_todo_replaceme {
-            log::debug!("{:<32}", "initializing additional helpers for ti-accl alg");
-
-            log::debug!(
-                "{:<32}",
-                "TODO: TESTING PARALLELIZATION VS NON PARALLELIZED"
-            );
-            let parallelize = false;
-            if parallelize {
-                use rayon::iter::IntoParallelRefIterator;
-                use rayon::iter::ParallelIterator;
-                // TODO: Because we're parallelizing / doing maps, this
-                // doesn't _really_ show us much (0% and then suddenly 100%).
-                // So we might want to remove it.
-                let progress = crate::progress(self.points().len());
-                for helper in self
-                    .points()
-                    .par_iter()
-                    .map(|x| self.neighborhood(x))
-                    .map(|nearest_neighbor| TIBounds {
-                        // "c(x)"'s index in self.kmeans()
-                        assigned_centroid_idx: nearest_neighbor.0,
-                        // "l(x,c)"
-                        // "Set the lower bound l(x,c) = 0 for each point x and center c"
-                        lower_bounds: vec![0.0; self.street().k()],
-                        // "u(x)"
-                        // "Assign upper bounds u(x) = min_c d(x,c)" (which by
-                        //  definition is the distance of the nearest neighbor at
-                        //  this point)
-                        upper_bound: nearest_neighbor.1,
-                        // "r(x)"
-                        // (Not explicitly mentioned during the pre-step. But, we know that
-                        // when starting out we literally _just_computed all the distances,
-                        // so it should theoretically be safe to leave 'false' here.)
-                        stale_upper_bound: false,
-                    })
-                    .collect::<Vec<_>>()
-                {
-                    ti_helpers.push(helper);
-                    progress.inc(1);
-                }
-            } else {
-                let progress = crate::progress(self.points().len());
-                for point in self.points() {
-                    let nearest_neighbor = self.neighborhood(point);
-                    ti_helpers.push(TIBounds {
-                        // "c(x)"'s index in self.kmeans()
-                        assigned_centroid_idx: nearest_neighbor.0,
-                        // "l(x,c)"
-                        // "Set the lower bound l(x,c) = 0 for each point x and center c"
-                        lower_bounds: vec![0.0; self.street().k()],
-                        // "u(x)"
-                        // "Assign upper bounds u(x) = min_c d(x,c)" (which by
-                        //  definition is the distance of the nearest neighbor at
-                        //  this point)
-                        upper_bound: nearest_neighbor.1,
-                        // "r(x)"
-                        // (Not explicitly mentioned during the pre-step. But, we know that
-                        // when starting out we literally _just_computed all the distances,
-                        // so it should theoretically be safe to leave 'false' here.)
-                        stale_upper_bound: false,
-                    });
-                    progress.inc(1);
-                }
+            log::debug!("{:<32}", "par_init helpers for ti-accl alg");
+            use rayon::iter::IntoParallelRefIterator;
+            use rayon::iter::ParallelIterator;
+            // TODO: Because we're parallelizing / doing maps, this
+            // doesn't _really_ show us much (just 0% and then suddenly
+            // 100%). So we might want to remove it...
+            let progress = crate::progress(self.points().len());
+            for helper in self
+                .points()
+                .par_iter()
+                .map(|x| self.neighborhood(x))
+                .map(|nearest_neighbor| TIBounds {
+                    // "c(x)"'s index in self.kmeans()
+                    assigned_centroid_idx: nearest_neighbor.0,
+                    // "l(x,c)"
+                    // "Set the lower bound l(x,c) = 0 for each point x and center c"
+                    lower_bounds: vec![0.0; self.street().k()],
+                    // "u(x)"
+                    // "Assign upper bounds u(x) = min_c d(x,c)" (which by
+                    //  definition is the distance of the nearest neighbor at
+                    //  this point)
+                    upper_bound: nearest_neighbor.1,
+                    // "r(x)"
+                    // (Not explicitly mentioned during the pre-step. But, we know that
+                    // when starting out we literally _just_computed all the distances,
+                    // so it should theoretically be safe to leave 'false' here.)
+                    stale_upper_bound: false,
+                })
+                .collect::<Vec<_>>()
+            {
+                ti_helpers.push(helper);
+                progress.inc(1);
             }
         }
 
