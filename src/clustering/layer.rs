@@ -153,8 +153,8 @@ impl Layer {
         // second one above: after each iteration, it produces the same set
         // of center locations as the standard k-means method.
         // """
-        for _ in 0..t {
-            log::debug!("{:<32}{:<32}", "Performing training iteration # ", t);
+        for i in 0..t {
+            log::debug!("{:<32}{:<32}", "Performing training iteration # ", i);
 
             if triangle_accelerate_todo_replaceme {
                 let (ref next_kmeans, ref next_helpers) =
