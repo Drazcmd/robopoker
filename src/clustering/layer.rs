@@ -95,7 +95,7 @@ impl Layer {
         //
         // TODO: Consider whether we're doing redundant distance calculations
         // here by relying on the non-triangle-accelerated self.neighborhood.
-        let triangle_accelerate_todo_replaceme = true;
+        let triangle_accelerate_todo_replaceme = false;
         let mut ti_helpers: Vec<TIBounds> = Vec::new();
         if triangle_accelerate_todo_replaceme {
             log::debug!("{:<32}", "initializing additional helpers for ti-accl alg");
