@@ -76,56 +76,93 @@ impl Layer {
     #[cfg(feature = "native")]
     /// primary clustering algorithm loop
     fn cluster(mut self) -> Self {
-        log::info!("{:<32}{:<32}", "initialize  kmeans", self.street());
-        let init = &mut self.init();
+        log::info!("{:<32}{:<32}", "initializing  kmeans", self.street());
+        let init = &mut self.init(); // note: may take a little bit to run!
         let last = &mut self.kmeans;
         std::mem::swap(init, last);
-        log::info!("{:<32}{:<32}", "clustering  kmeans", self.street());
+
         let t = self.street().t();
-        log::info!("{:<32}{:<32}", " - # training iterations 't':", t);
-        let progress = crate::progress(t);
 
         // Initialization from Elkan (2003) immediately prior to the 7-step
         // triangle inequality-based accelereated k-means algorithm.
         // """
-        // First, pick initial centers. Set the lower bound CP% for each point
-        // and center. Assign each to its closest initial center c(x) =
+        // First, pick initial centers. Set the lower bound l(x,c) for each point x
+        // and center c. Assign each x to its closest initial center c(x) =
         // argmin_c d(x,c), using Lemma 1 to avoid redundant distance
-        // calculations. Each time is computed, set l(x,c) = d(x,c). Assign
+        // calculations. Each time d(x,c) is computed, set l(x,c) = d(x,c). Assign
         // upper bounds u(x) = min_c d(x,c).
         // """
+        //
+        // TODO: Consider whether we're doing redundant distance calculations
+        // here by relying on the non-triangle-accelerated self.neighborhood.
         let triangle_accelerate_todo_replaceme = true;
         let mut ti_helpers: Vec<TIBounds> = Vec::new();
         if triangle_accelerate_todo_replaceme {
-            log::debug!("{:<32}", "Initializing helpers.");
+            log::debug!("{:<32}", "initializing additional helpers for ti-accl alg");
 
-            for helper in self
-                .points()
-                .iter()
-                .map(|x| self.neighborhood(x))
-                .map(|nearest_neighbor| TIBounds {
-                    // "c(x)"'s index in self.kmeans()
-                    assigned_centroid_idx: nearest_neighbor.0,
-                    // "l(x,c)"
-                    // "Set the lower bound l(x,c) = 0 for each point x and center c"
-                    lower_bounds: vec![0.0; self.street().k()],
-                    // "u(x)"
-                    // "Assign upper bounds u(x) = min_c d(x,c)" (which by
-                    //  definition is the distance of the nearest neighbor at
-                    //  this point)
-                    upper_bound: nearest_neighbor.1,
-                    // "r(x)"
-                    // (Not explicitly mentioned during the pre-step. But, we know that
-                    // when starting out we literally _just_computed all the distances,
-                    // so it should theoretically be safe to leave 'false' here.)
-                    stale_upper_bound: false,
-                })
-                .collect::<Vec<_>>()
-            {
-                ti_helpers.push(helper);
+            log::debug!(
+                "{:<32}",
+                "TODO: TESTING PARALLELIZATION VS NON PARALLELIZED"
+            );
+            let parallelize = false;
+            if parallelize {
+                use rayon::iter::IntoParallelRefIterator;
+                use rayon::iter::ParallelIterator;
+                let progress = crate::progress(self.points().len());
+                for helper in self
+                    .points()
+                    .par_iter()
+                    .map(|x| self.neighborhood(x))
+                    .map(|nearest_neighbor| TIBounds {
+                        // "c(x)"'s index in self.kmeans()
+                        assigned_centroid_idx: nearest_neighbor.0,
+                        // "l(x,c)"
+                        // "Set the lower bound l(x,c) = 0 for each point x and center c"
+                        lower_bounds: vec![0.0; self.street().k()],
+                        // "u(x)"
+                        // "Assign upper bounds u(x) = min_c d(x,c)" (which by
+                        //  definition is the distance of the nearest neighbor at
+                        //  this point)
+                        upper_bound: nearest_neighbor.1,
+                        // "r(x)"
+                        // (Not explicitly mentioned during the pre-step. But, we know that
+                        // when starting out we literally _just_computed all the distances,
+                        // so it should theoretically be safe to leave 'false' here.)
+                        stale_upper_bound: false,
+                    })
+                    .collect::<Vec<_>>()
+                {
+                    ti_helpers.push(helper);
+                    progress.inc(1);
+                }
+            } else {
+                let progress = crate::progress(self.points().len());
+                for point in self.points() {
+                    let nearest_neighbor = self.neighborhood(point);
+                    ti_helpers.push(TIBounds {
+                        // "c(x)"'s index in self.kmeans()
+                        assigned_centroid_idx: nearest_neighbor.0,
+                        // "l(x,c)"
+                        // "Set the lower bound l(x,c) = 0 for each point x and center c"
+                        lower_bounds: vec![0.0; self.street().k()],
+                        // "u(x)"
+                        // "Assign upper bounds u(x) = min_c d(x,c)" (which by
+                        //  definition is the distance of the nearest neighbor at
+                        //  this point)
+                        upper_bound: nearest_neighbor.1,
+                        // "r(x)"
+                        // (Not explicitly mentioned during the pre-step. But, we know that
+                        // when starting out we literally _just_computed all the distances,
+                        // so it should theoretically be safe to leave 'false' here.)
+                        stale_upper_bound: false,
+                    });
+                    progress.inc(1);
+                }
             }
         }
 
+        log::info!("{:<32}{:<32}", "clustering  kmeans", self.street());
+        let progress = crate::progress(t);
         // WIP: Need to verify results are actually the same (and that it
         // really speeds things up in practice). As per the paper:
         //
@@ -145,7 +182,7 @@ impl Layer {
         // of center locations as the standard k-means method.
         // """
         for _ in 0..t {
-            log::debug!("{:<32}{:<32}", "Training step: ", t);
+            log::debug!("{:<32}{:<32}", "Performing training iteration # ", t);
 
             if triangle_accelerate_todo_replaceme {
                 let (ref next_kmeans, ref next_helpers) =
@@ -398,7 +435,7 @@ impl Layer {
         // pure vectorized math. Instead we're having to settle for Rayon
         // parallelization on account of using Histograms and non-Euclidean
         // distances.
-        log::debug!("{:<32}", " - Elkan Step #3");
+        log::debug!("{:<32}", " - Elkan Step 3");
         // This is a Hashmap instead of vector since some of the points are
         // excluded during this step (see step 2 above). Using a vector would
         // make things more complciated since there would be 'gaps' as a
