@@ -98,16 +98,21 @@ impl Layer {
         let triangle_accelerate_todo_replaceme = true;
         let mut ti_helpers: Vec<TIBounds> = Vec::new();
         if triangle_accelerate_todo_replaceme {
+            use indicatif::ParallelProgressIterator;
             log::debug!("{:<32}", "par_init helpers for ti-accl alg");
             use rayon::iter::IntoParallelRefIterator;
             use rayon::iter::ParallelIterator;
-            // TODO: Because we're parallelizing / doing maps, this
-            // doesn't _really_ show us much (just 0% and then suddenly
-            // 100%). So we might want to remove it...
-            let progress = crate::progress(self.points().len());
             for helper in self
                 .points()
                 .par_iter()
+                // Create Indicatif 'progress' bar tied to the parallel
+                // iterator.
+                // TODO: might want to remove this if we don't want to have
+                // rayon becoming a dependancy for indicatif. Since using
+                // this requires listing rayon as a feature in the
+                // cargo.toml + letting cargo fmt put rayon as a dependency
+                // in the cargo.lock)
+                .progress_count(self.points().len().try_into().unwrap())
                 .map(|x| self.neighborhood(x))
                 .map(|nearest_neighbor| TIBounds {
                     // "c(x)"'s index in self.kmeans()
@@ -129,7 +134,6 @@ impl Layer {
                 .collect::<Vec<_>>()
             {
                 ti_helpers.push(helper);
-                progress.inc(1);
             }
         }
 
