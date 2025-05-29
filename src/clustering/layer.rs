@@ -97,6 +97,8 @@ impl Layer {
         let triangle_accelerate_todo_replaceme = true;
         let mut ti_helpers: Vec<TIBounds> = Vec::new();
         if triangle_accelerate_todo_replaceme {
+            log::debug!("{:<32}", "Initializing helpers.");
+
             for helper in self
                 .points()
                 .iter()
@@ -143,7 +145,7 @@ impl Layer {
         // of center locations as the standard k-means method.
         // """
         for _ in 0..t {
-            log::debug!("{:<32}{:<32}", "Starting training iteration:", t);
+            log::debug!("{:<32}{:<32}", "Training step: ", t);
 
             if triangle_accelerate_todo_replaceme {
                 let (ref next_kmeans, ref next_helpers) =
@@ -303,9 +305,7 @@ impl Layer {
         // This means s effectively contains the 'distance to the midpoint
         // between this centroid and the closest other centroid' for each
         // centroid.
-
-        log::info!("{:<32}", " - STEP 1 (remove me later)");
-
+        log::debug!("{:<32}", " - Elkan Step 1");
         // Step 1 (first half): d(c, c') for all centers c and c'
         let centroid_to_centroid_distances: Vec<Vec<f32>> = self
             .kmeans()
@@ -347,7 +347,7 @@ impl Layer {
             })
             .collect();
 
-        log::info!("{:<32}", " - STEP 2 (remove me later)");
+        log::debug!("{:<32}", " - Elkan Step 2");
 
         // Step 2: "Identify all points x such that u(x) <= s(c(x)).", i.e.
         // where the upper bound for the opint is less than its closest
@@ -376,12 +376,6 @@ impl Layer {
                 }
             })
             .collect();
-        log::info!("{:<32}", " - STEP 3 (remove me later)");
-        log::info!(
-            "{:<24}{:<8}",
-            " - (hash set length is",
-            step_2_excluded_points.len()
-        );
 
         // Step 3: For all remaining points x and centers c such that ...
         //
@@ -400,53 +394,16 @@ impl Layer {
         // should be replaced by vectorized code that operates on all
         // relevant x collectively."
         //
+        // Note: technically we're not _quite_ doing what the paper says, i.e.
+        // pure vectorized math. Instead we're having to settle for Rayon
+        // parallelization on account of using Histograms and non-Euclidean
+        // distances.
+        log::debug!("{:<32}", " - Elkan Step #3");
         // This is a Hashmap instead of vector since some of the points are
         // excluded during this step (see step 2 above). Using a vector would
         // make things more complciated since there would be 'gaps' as a
-        // result.
-        // The Histograms are borrowed instead of owned since we don't need to
-        // update them at all at this step; at most we just use them for some
-        // ditance calculations. (The helpers however DO need to be owned
-        // since we're replacing them all with the updated ones at the very
-        // end of the step.)
-        //
-        // TODO: Possibly could just mutate helpers directly + immediately,
-        // rather than creating a copy and doing the update at the end of
-        // the step. (I _think_ this would allow us to avoid doing a bunch
-        // of clones() throughout this step.) Depends on how Rayon works
-        // though; might not actually be possible (TBD)
-        //
-        // Note: 1. This is the slowest part of the overall function (most of
-        // our time is spent on this step), and 2. we're technically not
-        // quite doing what the paper says. We should really be doing
-        // vectorized code in the inner loop, but right now we're using rayon
-        // parallelization. (This is currently the best we can do given that
-        // we're using fancy `Histogram`s which need more complicated math to
-        // compute the distance, as opposd to just doing standard euclidian
-        // distance calculations.)
-        log::info!(
-            "{:<32}",
-            " - STEP 3, getting working points (remove me later)"
-        );
-        // TODO: THIS PART RIGHT HERE MAY BE MASSIVELY SLOWING DOWN EXECUTION.
-        // INFO logs appear roughly as follows:
-        // ...
-        // 09:53:09 - STEP 1
-        // 09:53:09 - STEP 3
-        // 09:53:09 - STEP 3, getting working points
-        // 10:21:54 - STEP 3, starting outer loop
-        // 10:21:54 - STEP 3, outer loop # 0
-        // 10:21:55 - STEP 3, outer loop # 1
-        // 10:21:55 - STEP 3, outer loop # 2
-        // ...
-        // 10:23:40 - STEP 3, outer loop # 142
-        // 10:23:41 - STEP 3, outer loop # 143
-        // 10:23:41 - STEP 4
-        // 10:23:49 - STEP 5
-        // 10:24:52 - STEP 7
-        // 10:24:52 - STEP 1 (remove me later)
-        // ...
-        //
+        // result. (That said - it might still be worth refactoring this in
+        // the future if doing so provides a speedup.)
         let mut step_3_working_points: HashMap<usize, (&Histogram, TIBounds)> = self
             .points()
             .iter()
@@ -459,19 +416,12 @@ impl Layer {
         // (as mentioned above). NOT over the points / over anything in
         // step_3_working_points yet. (That all happens instead inside the
         // parallelized code down below inside this outer loop.)
-        log::info!("{:<32}", " - STEP 3, starting outer loop (remove me later)");
         for (center_c_idx, center_c) in self.kmeans().iter().enumerate().collect::<Vec<_>>() {
-            log::info!("{:<24}{:<8}", " - STEP 3, outer loop #", center_c_idx);
             let immutable_step_3_working_points = step_3_working_points.clone();
             for (point_i, point_h, helper) in immutable_step_3_working_points
                 .par_iter()
                 .map(|(point_i, histogram_and_helper)| {
                     (point_i, histogram_and_helper.0, &histogram_and_helper.1)
-                })
-                .inspect(|(point_i, _, _)| {
-                    if **point_i == 1 {
-                        log::info!("{:<32}", " - STEP 3, point 1, post filtering");
-                    }
                 })
                 // ****
                 // * STEP 3 FIRST HALF PER CENTROID: SETUP AND FILTERING (3.i, 3.ii, 3.iii) *
@@ -498,11 +448,6 @@ impl Layer {
                     let dist_between_centroids =
                         &centroid_to_centroid_distances[helper.assigned_centroid_idx][center_c_idx];
                     helper.upper_bound > 0.5 * dist_between_centroids
-                })
-                .inspect(|(point_i, _, _)| {
-                    if **point_i == 1 {
-                        log::info!("{:<32}", " - STEP 3, point 1, post first half per centroid");
-                    }
                 })
                 // ****
                 // * STEP 3 SECOND HALF PER CENTROID: DISTANCE COMPUTATIONS AND UPDATES (3.a and 3.b) *
@@ -538,11 +483,6 @@ impl Layer {
                         possibly_updated_helper_and_distance_from_point_to_current_centroid.0,
                         possibly_updated_helper_and_distance_from_point_to_current_centroid.1,
                     )
-                })
-                .inspect(|(point_i, _, _, _)| {
-                    if **point_i == 1 {
-                        log::info!("{:<32}", "STEP 3, point 1, post second half per centroid");
-                    }
                 })
                 // Step 3.b:
                 // If d(x, c(x)) > l(x,c)
@@ -584,8 +524,7 @@ impl Layer {
             }
         }
 
-        log::info!("{:<32}", " - STEP 4 (remove me later)");
-
+        log::debug!("{:<32}", " - Elkan Step 4");
         // Merge the updated helper values back with the original vector we got
         // at the start of the function (which has entries for *all* points, not
         // just the ones bieng updated in step 3).
@@ -652,8 +591,7 @@ impl Layer {
             new_centroids.push(next_centroid);
         }
 
-        log::info!("{:<32}", " - STEP 5 (remove me later)");
-
+        log::debug!("{:<32}", " - Elkan Step 5");
         // Step 5: Update lower bounds. From paper: ""
         // 5. For each point x and center c, assign
         //    l(x,c) = max{ l(x, c) - d(c, m(c)), 0 }
@@ -699,7 +637,7 @@ impl Layer {
                 .collect();
         }
 
-        log::info!("{:<32}", " - STEP 6 (remove me later)");
+        log::debug!("{:<32}", " - Elkan Step 6");
         // Step 6: Update upper bounds. From paper: """
         // 6. For each point x, assign
         //    u(x) = u(x) + d(m(c(x)), c(x))
@@ -721,7 +659,7 @@ impl Layer {
         // Form paper "[Compute] the new location of each cluster center",
         // i.e. Step 7:
         // "7. Replace each center c by m(c)"
-        log::info!("{:<32}", " - STEP 7 (remove me later)");
+        log::debug!("{:<32}", " - Elkan Step 7");
         (new_centroids, step_6_helpers)
     }
 
