@@ -434,7 +434,8 @@ impl Layer {
         for (center_c_idx, center_c) in self.kmeans().iter().enumerate() {
             step_3_working_points
                 .par_iter_mut()
-                .progress_count(self.points().len().try_into().unwrap())
+                // QUICK TEST: Is progress bar itself slowing us down now?
+                // .progress_count(self.points().len().try_into().unwrap())
                 // _point_i used later for step 4 lookups but unneeded when mutating here
                 .for_each(|(_point_i, (point_h, helper))| {
                     // STEP 3 FILTERING: Apply all three filter conditions with early exits
@@ -464,16 +465,16 @@ impl Layer {
                         helper.upper_bound = dist; // Update u(x) in-place
                         helper.lower_bounds[helper.assigned_centroid_idx] = dist; // Update l(x, c(x)) in-place
 
-                        // Step 3.a: If r(x) then compute d(x, c(x)) and assign r(x) =
-                        // false. Otherwise, d(x, c(x)) = u(x).
-                        helper.stale_upper_bound = false; // clear r(x) in-place
+                        // Step 3.a: If r(x) then compute d(x, c(x)) and
+                        // assign r(x) = false. Otherwise, d(x, c(x)) = u
+                        // (x).
+                        helper.stale_upper_bound = false; // clear r (x) in-place
                         dist
                     } else {
                         // Use existing upper bound as d(x, c(x))
                         helper.upper_bound
                     };
 
-                    //  ... "Compute d(x,c)"
                     // Step 3.b:
                     //  If d(x, c(x)) > l(x,c)
                     //  or d(x, c(x)) > (1/2) d(c(x), c)
@@ -489,18 +490,19 @@ impl Layer {
                         //  ... "Compute d(x,c)"
                         let dist_to_center_c = self.emd(point_h, center_c);
                         // (As discussed above: "each time d(x, c) is calculated ...")
-                        helper.lower_bounds[center_c_idx] = dist_to_center_c;
+                        helper.lower_bounds[center_c_idx] = dist_to_center_c; // update l(x,c) in place
+
                         // ... If d(x,c) < d(x, c(x)) then assign c(x) = c
                         if dist_to_center_c < current_centroid_dist {
-                            // As discussed
-                            // above: "u(x) is updated whenever c(x) is
-                            // changed or d(x, c(x)) is computed." Notably,
-                            // ~2 lines up we computing d(x, c), but that's
-                            // NOT the same as d(x, c(x)). So we only need to
-                            // update upper bound if we actually made it into
-                            // here.
-                            helper.assigned_centroid_idx = center_c_idx;
-                            helper.upper_bound = dist_to_center_c
+                            helper.assigned_centroid_idx = center_c_idx; // Reassign c(x) = c in-place
+
+                            // As discussed above: "u(x) is updated whenever c
+                            // (x) is changed or d(x, c(x)) is computed."
+                            // Notably, ~2 lines up we computing d(x, c), but
+                            // that's NOT the same as d(x, c(x)). So we only
+                            // need to update upper bound if we actually made
+                            // it into here.
+                            helper.upper_bound = dist_to_center_c // update u (x) in place
                         }
                     }
                 });
@@ -543,8 +545,8 @@ impl Layer {
         // a representative member of the cluster.
         // """
         //
-        // In this case it's a little weird looking ('aborbing' histograms) since we're using emd
-        // instead of Euclidean distance.
+        // In this case it's a little weird looking ('aborbing' histograms)
+        // since we're using emd instead of Euclidean distance.
         let points_assigned_per_center: Vec<Vec<&Histogram>> = self
             .kmeans()
             .iter()
@@ -595,29 +597,21 @@ impl Layer {
             .map(|(old_center, new_center)| self.emd(old_center, new_center))
             .collect();
 
-        let mut step_5_helpers: Vec<TIBounds> = step_4_helpers.into_iter().cloned().collect();
-        for helper in &mut step_5_helpers {
-            helper.lower_bounds = helper
-                .lower_bounds
-                // TODO: investigate whether we should just do this single threaded
-                // given we're no longer doing any emd calculations here.
-                // (And/or consider doing a vectorized update.)
-                .par_iter()
-                .enumerate()
-                .map(|(center_c_idx, lower_bound)| {
-                    // d(c, m(c))
-                    // (Must do a distance calc since m(c) is new / not in the
-                    // original set of centroids we computed distances for at
-                    // the start)
-                    let dist_center_and_new_center = &new_centroid_movements[center_c_idx];
-                    f32::max(
-                        // l(x,c) - d(c, m(c))
-                        lower_bound - dist_center_and_new_center,
-                        0.0,
-                    )
-                })
-                .collect();
-        }
+        let step_5_helpers: Vec<TIBounds> = step_4_helpers
+            .into_par_iter()
+            .cloned()
+            .map(|mut helper| {
+                // Update lower_bounds in-place (sequential within each helper)
+                // Note: looks up d(c, m(c)) from when we calculated it outside
+                // the loop above.
+                for (lower_bound, &centroid_movement) in
+                    helper.lower_bounds.iter_mut().zip(&new_centroid_movements)
+                {
+                    *lower_bound = (*lower_bound - centroid_movement).max(0.0);
+                }
+                helper
+            })
+            .collect();
 
         log::debug!("{:<32}", " - Elkan Step 6");
         // Step 6: Update upper bounds. From paper: """
