@@ -434,8 +434,11 @@ impl Layer {
         for (center_c_idx, center_c) in self.kmeans().iter().enumerate() {
             step_3_working_points
                 .par_iter_mut()
-                // QUICK TEST: Is progress bar itself slowing us down now?
-                // .progress_count(self.points().len().try_into().unwrap())
+                // As far as we can tell, this progress bar doesn't negatively affect
+                // performance. HOWEVER, it does mess with the other progress bar +
+                // doesn't look tidy (due to being unstyled), so we should probably
+                // come back and clean it up a bit.
+                .progress_count(self.points().len().try_into().unwrap())
                 // _point_i used later for step 4 lookups but unneeded when mutating here
                 .for_each(|(_point_i, (point_h, helper))| {
                     // STEP 3 FILTERING: Apply all three filter conditions with early exits
