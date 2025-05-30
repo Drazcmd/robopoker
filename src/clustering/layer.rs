@@ -98,7 +98,9 @@ impl Layer {
         // Since we're effectively choosing the closet initial centers WITHOUT
         // properly using Lemma 1 to avoid redundant distance computations
         // ********
-        log::debug("Initializing helpers for triangle-inequality based acceleration of clustering");
+        log::debug!(
+            "Initializing helpers for triangle-inequality based acceleration of clustering"
+        );
         let triangle_accelerate_todo_replaceme = true;
         let mut ti_helpers: Vec<TIBounds> = Vec::new();
         if triangle_accelerate_todo_replaceme {
