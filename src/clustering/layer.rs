@@ -303,6 +303,7 @@ impl Layer {
         use rayon::iter::IndexedParallelIterator;
         use rayon::iter::IntoParallelRefIterator;
         use rayon::iter::ParallelIterator;
+        use indicatif::ParallelProgressIterator;
 
         let k = self.street().k();
         // TODO start tracking loss like in the other approach!
@@ -437,6 +438,7 @@ impl Layer {
             let immutable_step_3_working_points = step_3_working_points.clone();
             for (point_i, point_h, helper) in immutable_step_3_working_points
                 .par_iter()
+                .progress_count(self.points().len().try_into().unwrap())
                 .map(|(point_i, histogram_and_helper)| {
                     (point_i, histogram_and_helper.0, &histogram_and_helper.1)
                 })
