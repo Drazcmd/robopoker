@@ -440,16 +440,19 @@ impl Layer {
                     // STEP 3 FILTERING: Apply all three filter conditions with early exits
                     // STEP 3.i: Skip if c == c(x) (point already assigned to this centroid)
                     // STEP 3.ii: Skip if u(x) <= l(x, c) (upper bound not greater than lower bound)
-                    // STEP 3.iii: Skip if u(x) <= (1/2) * d(c(x), c) 
+                    // STEP 3.iii: Skip if u(x) <= (1/2) * d(c(x), c)
                     // (i.e. upper bound not greater than half centroid distance)
-                    if center_c_idx == helper.assigned_centroid_idx ||
-                            helper.upper_bound <= helper.lower_bounds[center_c_idx] ||
-                            helper.upper_bound <= 0.5 *
-                                centroid_to_centroid_distances[helper.assigned_centroid_idx][center_c_idx] {
+                    if center_c_idx == helper.assigned_centroid_idx
+                        || helper.upper_bound <= helper.lower_bounds[center_c_idx]
+                        || helper.upper_bound
+                            <= 0.5
+                                * centroid_to_centroid_distances[helper.assigned_centroid_idx]
+                                    [center_c_idx]
+                    {
                         return;
                     }
 
-                    // STEP 3.a: "If r(x) then compute d(x, c(x)) and assign r(x) = false. 
+                    // STEP 3.a: "If r(x) then compute d(x, c(x)) and assign r(x) = false.
                     //           Otherwise, d(x, c(x)) = u(x)."
                     let current_centroid_dist = if helper.stale_upper_bound {
                         let dist = self.emd(point_h, &self.kmeans()[helper.assigned_centroid_idx]);
@@ -458,43 +461,49 @@ impl Layer {
                         // updated by assigning l(x, c) = d(x, c)" and
                         // "u(x) is updated whenever c(x) is changed or d
                         //  (x, c(x)) is computed."
-                        helper.upper_bound = dist;  // Update u(x) in-place
-                        helper.lower_bounds[helper.assigned_centroid_idx] = dist;  // Update l(x, c(x)) in-place
+                        helper.upper_bound = dist; // Update u(x) in-place
+                        helper.lower_bounds[helper.assigned_centroid_idx] = dist; // Update l(x, c(x)) in-place
+
                         // Step 3.a: If r(x) then compute d(x, c(x)) and assign r(x) =
                         // false. Otherwise, d(x, c(x)) = u(x).
-                        helper.stale_upper_bound = false;  // clear r(x) in-place
+                        helper.stale_upper_bound = false; // clear r(x) in-place
                         dist
                     } else {
                         // Use existing upper bound as d(x, c(x))
                         helper.upper_bound
                     };
 
-                // Step 3.b:
-                //  If d(x, c(x)) > l(x,c)
-                //  or d(x, c(x)) > (1/2) d(c(x), c)
-                // then:
-                //  Compute d(x,c)
-                //  If d(x,c) < d(x, c(x)) then assign c(x) = c
-                if current_centroid_dist > helper.lower_bounds[center_c_idx] ||
-                        current_centroid_dist >
-                            0.5 * centroid_to_centroid_distances[helper.assigned_centroid_idx][center_c_idx] {
                     //  ... "Compute d(x,c)"
-                    let dist_to_center_c = self.emd(point_h, center_c);
-                    // (As discussed above: "each time d(x, c) is calculated ...")
-                    helper.lower_bounds[center_c_idx] = dist_to_center_c; // update l(x,c) in place
-                    // ... If d(x,c) < d(x, c(x)) then assign c(x) = c
-                    if dist_to_center_c < current_centroid_dist {
-                        helper.assigned_centroid_idx = center_c_idx;  // Reassign c(x) = c in-place
-                        // As discussed above: "u(x) is updated
-                        // whenever c(x) is changed or d(x, c(x)) is
-                        // computed." Notably, ~2 lines up we
-                        // computing d(x, c), but that's NOT the same as
-                        // d(x, c(x)). So we only need to update upper
-                        // bound if we actually made it into here.
-                        helper.upper_bound = dist_to_center_c // update u(x) in place
+                    // Step 3.b:
+                    //  If d(x, c(x)) > l(x,c)
+                    //  or d(x, c(x)) > (1/2) d(c(x), c)
+                    // then:
+                    //  Compute d(x,c)
+                    //  If d(x,c) < d(x, c(x)) then assign c(x) = c
+                    if current_centroid_dist > helper.lower_bounds[center_c_idx]
+                        || current_centroid_dist
+                            > 0.5
+                                * centroid_to_centroid_distances[helper.assigned_centroid_idx]
+                                    [center_c_idx]
+                    {
+                        //  ... "Compute d(x,c)"
+                        let dist_to_center_c = self.emd(point_h, center_c);
+                        // (As discussed above: "each time d(x, c) is calculated ...")
+                        helper.lower_bounds[center_c_idx] = dist_to_center_c;
+                        // ... If d(x,c) < d(x, c(x)) then assign c(x) = c
+                        if dist_to_center_c < current_centroid_dist {
+                            // As discussed
+                            // above: "u(x) is updated whenever c(x) is
+                            // changed or d(x, c(x)) is computed." Notably,
+                            // ~2 lines up we computing d(x, c), but that's
+                            // NOT the same as d(x, c(x)). So we only need to
+                            // update upper bound if we actually made it into
+                            // here.
+                            helper.assigned_centroid_idx = center_c_idx;
+                            helper.upper_bound = dist_to_center_c
+                        }
                     }
-                }
-            });
+                });
         }
 
         log::debug!("{:<32}", " - Elkan Step 4");
