@@ -690,14 +690,17 @@ impl Layer {
             .collect();
 
         log::debug!("{:<32}", "lemma 1 accelerated par_init of helpers");
-        let nearest_neighbors: Vec<Neighbor> = self.points()
+        let nearest_neighbors: Vec<Neighbor> = self
+            .points()
             .par_iter()
             .progress_count(self.points().len().try_into().unwrap())
             .map(|point| {
                 // Compute min distance d(x, c) efficiently by using
                 // lemma 1 from Elkan (2003):
                 // if d(b, c) >= 2d(x, b) then d(x, c) >= d(x, b)
+                // Initially setting b as the 0-indexed centroid...
                 let (index, initial_distance) = (0, self.emd(point, &(self.kmeans()[0])));
+                // ... then continuing on for every other c
                 let nearest_neighbor: Neighbor = self.kmeans().iter().enumerate().skip(1).fold(
                     (index, initial_distance),
                     |acc, x_enumerated| {
@@ -706,35 +709,27 @@ impl Layer {
                         // center c index and histogram
                         let (next_center_index, next_center) = x_enumerated;
 
-                        // Cheap lookup of precomputed d(b, c) 
+                        // Cheap lookup of precomputed d(b, c)
                         let distance_acc_centroid_to_next_centroid =
-                            centroid_to_centroid_distances[next_center_index][acc_center_index];
+                            centroid_to_centroid_distances[acc_center_index][next_center_index];
 
                         // if d(b, c) >= 2d(x, b)...
                         if distance_acc_centroid_to_next_centroid >= 2.0 * acc_center_distance {
-                            // ... then d(x, c) >= d(x, b). So no need to do the distance
-                            // calculation of d(x, c), we can just stick with the current
+                            // ... then we definitely know d(x, c) >= d(x, b).
+                            // So no need to do the distance calculation of d
+                            // (x, c), we can just stick with the current
                             // center in our accumulator!
-                            acc
-                        } else {
-                            // ... then it's NOT true that d(x, c) >= d(x, b). So
-                            // we have to actually do the distance calculation d(x, c).
-                            let next_center_distance = self.emd(point, next_center);
-
-                            // double checking our math isn't wrong for some reason; could later
-                            // remove if we're confident enough that the histogram math is
-                            // going to all be accurate and that we didn't make any mistakes
-                            // above.
-                            if next_center_distance < acc_center_distance {
-                                // Expected case: it really is closer, so we want to update acc to use it.
-                                (next_center_index, next_center_distance)
-                            } else {
-                                // Unexpected case: either we have a bug, or somehow broke math.
-                                log::error!("Centroid was expected to be closer than prior centroids based on triangle inequality math, but after computing distance it was farther away. Elkan (2003) lemma 1 suggests this should be impossible!");
-                                acc
-                            }
+                            return acc;
                         }
-                    }
+                        // ... then it's not _necessarily_ true that d(x, c) >= d(x, b). So
+                        // we have to actually do the distance calculation d(x, c) to find
+                        // out whether or not this next centroid is in fact closer.
+                        let next_center_distance = self.emd(point, next_center);
+                        if next_center_distance >= acc_center_distance {
+                            return acc; // this centroid was NOT closer when we checked
+                        }
+                        (next_center_index, next_center_distance) // this centroid WAS closer
+                    },
                 );
                 nearest_neighbor
             })
