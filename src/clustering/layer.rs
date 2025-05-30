@@ -98,30 +98,35 @@ impl Layer {
         // Since we're effectively choosing the closet initial centers WITHOUT
         // properly using Lemma 1 to avoid redundant distance computations
         // ********
-        log::warn!("Initializing helpers without properly using lemma 1 to avoid redundant distance calculations. This is likely slower than it should be.");
+        log::warn!("Initializing helpers. This is possibly slower than it should be.");
         let triangle_accelerate_todo_replaceme = true;
         let mut ti_helpers: Vec<TIBounds> = Vec::new();
         if triangle_accelerate_todo_replaceme {
-            use indicatif::ParallelProgressIterator;
-            log::debug!("{:<32}", "par_init helpers for ti-accl alg");
-            use rayon::iter::IntoParallelRefIterator;
-            use rayon::iter::ParallelIterator;
+            // **** TESTING OUT NEW APPROACH BELOW ****
+            // use indicatif::ParallelProgressIterator;
+            // log::debug!("{:<32}", "par_init helpers for ti-accl alg");
+            // use rayon::iter::IntoParallelRefIterator;
+            // use rayon::iter::ParallelIterator;
+            // for helper in
+            // self
+            //    .points()
+            //    .par_iter()
+            //    // Create additional separate Indicatif 'progress' bar tied to
+            //    // the parallel iterator.
+            //    // TODO: might want to remove this if we don't want to have
+            //    // rayon becoming a dependancy for indicatif. Since using
+            //    // this requires listing rayon as a feature in the
+            //    // cargo.toml + letting cargo fmt put rayon as a dependency
+            //    // in the cargo.lock)
+            //    // TODO: Figure out how to add styling to this while still
+            //    // keeping it the right length. (.progress_count() doesn't
+            //    // seem to allow styling, and .progress_with_style() doesn't
+            //    // seem to allow a length...?)
+            //    .progress_count(self.points().len().try_into().unwrap())
+            //    .map(|x| self.neighborhood(x))
             for helper in self
-                .points()
-                .par_iter()
-                // Create additional separate Indicatif 'progress' bar tied to
-                // the parallel iterator.
-                // TODO: might want to remove this if we don't want to have
-                // rayon becoming a dependancy for indicatif. Since using
-                // this requires listing rayon as a feature in the
-                // cargo.toml + letting cargo fmt put rayon as a dependency
-                // in the cargo.lock)
-                // TODO: Figure out how to add styling to this while still
-                // keeping it the right length. (.progress_count() doesn't
-                // seem to allow styling, and .progress_with_style() doesn't
-                // seem to allow a length...?)
-                .progress_count(self.points().len().try_into().unwrap())
-                .map(|x| self.neighborhood(x))
+                .compute_initial_centroids_per_point()
+                .iter()
                 .map(|nearest_neighbor| TIBounds {
                     // "c(x)"'s index in self.kmeans()
                     assigned_centroid_idx: nearest_neighbor.0,
@@ -143,7 +148,7 @@ impl Layer {
             {
                 ti_helpers.push(helper);
             }
-            log::warn!("Done with (slow) helper initializaiton. We will perform triangle acceleration properly from now on.")
+            log::warn!("Done with (slow?) helper initializaiton. We will perform triangle acceleration properly from now on.")
         }
 
         log::info!("{:<32}{:<32}", "clustering  kmeans", self.street());
@@ -651,6 +656,92 @@ impl Layer {
     fn abstraction(&self, i: usize) -> Abstraction {
         Abstraction::from((self.street(), i))
     }
+
+    /// Obtains nearest neighbor and separation distance for a Histogram
+    /// using lemma 1 from Elkan (2003) to aboid redundant distance
+    /// calculations. Allowing us to efficient assign each point to
+    /// its initial centroid.
+    fn compute_initial_centroids_per_point(&self) -> Vec<Neighbor> {
+        use indicatif::ParallelProgressIterator;
+        use rayon::iter::IntoParallelRefIterator;
+        use rayon::iter::ParallelIterator;
+
+        // Initialization first half: d(c, c') for all centers c and c'
+        // (this lets us use lemma 1 for massive speedups below)
+        //
+        // TODO: Extract into shared helper function (curently duped
+        // here and in the main triangle accelerated clustering loop)
+        let k = self.street().k();
+        log::debug!("{:<32}", "precomputing centroid to centroid distances");
+        let centroid_to_centroid_distances: Vec<Vec<f32>> = self
+            .kmeans()
+            .iter()
+            // Get all combinations [(c1,c1), (c1,c2), ... (c_k, c_k)] into
+            // a simple 1-D vector to allow for easily parallelizing the emd
+            // calculations.
+            // TLDR: effectively just itertools.array_combinations().
+            .flat_map(|c| self.kmeans().iter().map(move |c_prime| (c, c_prime)))
+            .collect::<Vec<_>>()
+            .par_iter()
+            .map(|(center1, center2)| self.emd(center1, center2)) // 1-D vector with length k^2
+            .collect::<Vec<f32>>()
+            .chunks(k) // Separate into k-length chunks so we can get it into a 2-D vector
+            .map(|chunked| chunked.to_vec())
+            .collect();
+
+        log::debug!("{:<32}", "lemma 1 accelerated par_init of helpers");
+        let nearest_neighbors: Vec<Neighbor> = self.points()
+            .par_iter()
+            .progress_count(self.points().len().try_into().unwrap())
+            .map(|point| {
+                // Compute min distance d(x, c) efficiently by using
+                // lemma 1 from Elkan (2003):
+                // if d(b, c) >= 2d(x, b) then d(x, c) >= d(x, b)
+                let (index, initial_distance) = (0, self.emd(point, &(self.kmeans()[0])));
+                let nearest_neighbor: Neighbor = self.kmeans().iter().enumerate().skip(1).fold(
+                    (index, initial_distance),
+                    |acc, x_enumerated| {
+                        // center b index, d(x, b)
+                        let (acc_center_index, acc_center_distance) = acc;
+                        // center c index and histogram
+                        let (next_center_index, next_center) = x_enumerated;
+
+                        // Cheap lookup of precomputed d(b, c) 
+                        let distance_acc_centroid_to_next_centroid =
+                            centroid_to_centroid_distances[next_center_index][acc_center_index];
+
+                        // if d(b, c) >= 2d(x, b)...
+                        if distance_acc_centroid_to_next_centroid >= 2.0 * acc_center_distance {
+                            // ... then d(x, c) >= d(x, b). So no need to do the distance
+                            // calculation of d(x, c), we can just stick with the current
+                            // center in our accumulator!
+                            acc
+                        } else {
+                            // ... then it's NOT true that d(x, c) >= d(x, b). So
+                            // we have to actually do the distance calculation d(x, c).
+                            let next_center_distance = self.emd(point, next_center);
+
+                            // double checking our math isn't wrong for some reason; could later
+                            // remove if we're confident enough that the histogram math is
+                            // going to all be accurate and that we didn't make any mistakes
+                            // above.
+                            if next_center_distance < acc_center_distance {
+                                // Expected case: it really is closer, so we want to update acc to use it.
+                                (next_center_index, next_center_distance)
+                            } else {
+                                // Unexpected case: either we have a bug, or somehow broke math.
+                                log::error!("Centroid was expected to be closer than prior centroids based on triangle inequality math, but after computing distance it was farther away. Elkan (2003) lemma 1 suggests this should be impossible!");
+                                acc
+                            }
+                        }
+                    }
+                );
+                nearest_neighbor
+            })
+            .collect();
+        nearest_neighbors
+    }
+
     /// calculates nearest neighbor and separation distance for a Histogram
     fn neighborhood(&self, x: &Histogram) -> Neighbor {
         self.kmeans()
