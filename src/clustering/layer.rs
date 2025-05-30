@@ -98,7 +98,7 @@ impl Layer {
         // Since we're effectively choosing the closet initial centers WITHOUT
         // properly using Lemma 1 to avoid redundant distance computations
         // ********
-        log::warn!("Initializing helpers. This is possibly slower than it should be.");
+        log::debug("Initializing helpers for triangle-inequality based acceleration of clustering");
         let triangle_accelerate_todo_replaceme = true;
         let mut ti_helpers: Vec<TIBounds> = Vec::new();
         if triangle_accelerate_todo_replaceme {
@@ -148,7 +148,7 @@ impl Layer {
             {
                 ti_helpers.push(helper);
             }
-            log::warn!("Done with (slow?) helper initializaiton. We will perform triangle acceleration properly from now on.")
+            log::debug!("Done with helper initializaiton. Starting triangle-inequality accelerated clustering now!")
         }
 
         log::info!("{:<32}{:<32}", "clustering  kmeans", self.street());
