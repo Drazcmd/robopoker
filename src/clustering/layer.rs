@@ -93,8 +93,12 @@ impl Layer {
         // upper bounds u(x) = min_c d(x,c).
         // """
         //
-        // TODO: Consider whether we're doing redundant distance calculations
-        // here by relying on the non-triangle-accelerated self.neighborhood.
+        // ********
+        // TODO: We're very likely doing redundant distance calculations here!
+        // Since we're effectively choosing the closet initial centers WITHOUT
+        // properly using Lemma 1 to avoid redundant distance computations
+        // ********
+        log::warn!("Initializing helpers without properly using lemma 1 to avoid redundant distance calculations. This is likely slower than it should be.");
         let triangle_accelerate_todo_replaceme = true;
         let mut ti_helpers: Vec<TIBounds> = Vec::new();
         if triangle_accelerate_todo_replaceme {
@@ -139,6 +143,7 @@ impl Layer {
             {
                 ti_helpers.push(helper);
             }
+            log::warn!("Done with (slow) helper initializaiton. We will perform triangle acceleration properly from now on.")
         }
 
         log::info!("{:<32}{:<32}", "clustering  kmeans", self.street());
@@ -395,10 +400,18 @@ impl Layer {
             })
             .collect();
 
+        let mut step_3_working_points: HashMap<usize, (&Histogram, TIBounds)> = self
+            .points()
+            .iter()
+            .enumerate()
+            .filter(|(point_i, _)| !step_2_excluded_points.contains(point_i))
+            .map(|(point_i, point_h)| (point_i, (point_h, ti_helpers[point_i].clone())))
+            .collect();
+
         // Step 3: For all remaining points x and centers c such that ...
         //
-        // ** THIS VECTOR WILL BE UPDATED ON EACH ITERATION OF THE OUTER LOOP
-        // OVER THE CENTROIDS BELOW **
+        // ** THIS HASHMAP WILL BE UPDATED IN PLACE VIA PARALLELIZED CODE
+        // BELOW **
         //
         // See paper as follows:
         // "In step (3), each time d(x, c) is calculated for any x and c, its
@@ -417,134 +430,71 @@ impl Layer {
         // parallelization on account of using Histograms and non-Euclidean
         // distances.
         log::debug!("{:<32}", " - Elkan Step 3");
-        // This is a Hashmap instead of vector since some of the points are
-        // excluded during this step (see step 2 above). Using a vector would
-        // make things more complciated since there would be 'gaps' as a
-        // result. (That said - it might still be worth refactoring this in
-        // the future if doing so provides a speedup.)
-        let mut step_3_working_points: HashMap<usize, (&Histogram, TIBounds)> = self
-            .points()
-            .iter()
-            .enumerate()
-            .filter(|(point_i, _)| !step_2_excluded_points.contains(point_i))
-            .map(|(point_i, point_h)| (point_i, (point_h, ti_helpers[point_i].clone())))
-            .collect();
-
-        // Note: looping over *all centers* here in the outer loop
-        // (as mentioned above). NOT over the points / over anything in
-        // step_3_working_points yet. (That all happens instead inside the
-        // parallelized code down below inside this outer loop.)
-        for (center_c_idx, center_c) in self.kmeans().iter().enumerate().collect::<Vec<_>>() {
-            let immutable_step_3_working_points = step_3_working_points.clone();
-            for (point_i, point_h, helper) in immutable_step_3_working_points
-                .par_iter()
+        use rayon::prelude::*;
+        for (center_c_idx, center_c) in self.kmeans().iter().enumerate() {
+            step_3_working_points
+                .par_iter_mut()
                 .progress_count(self.points().len().try_into().unwrap())
-                .map(|(point_i, histogram_and_helper)| {
-                    (point_i, histogram_and_helper.0, &histogram_and_helper.1)
-                })
-                // ****
-                // * STEP 3 FIRST HALF PER CENTROID: SETUP AND FILTERING (3.i, 3.ii, 3.iii) *
-                // ****
-                // Step 3 (i): ... [where] c != c(x)
-                .filter(|(_, _, helper)| center_c_idx != helper.assigned_centroid_idx)
-                // Step 3 (ii): ... [where] u(x) > l(x, c)
-                .filter(|(_, _, helper)| helper.upper_bound > helper.lower_bounds[center_c_idx])
-                // Step 3 (iii): ... [where] u(x) >  1/2 d(c(x), c)
-                //
-                // Note also from the paper:
-                // "Condition (iii) inside step (3) is beneficial despite step (2), becaus
-                // u(x) and c(x) may change during the execution of step (3)"
-                .filter(|(_, _, helper)| {
-                    // No need to recompute this distance since we already
-                    // computed it back in step 1 (and given we haven't
-                    // recomputed the centers yet those values are all
-                    // still correct here).
-                    // That said - in practice this doesn't meaningfully
-                    // affect runtime either way (since we're doing all of
-                    // them still in parallel, one per point). We could
-                    // alternatively just compute these from scratch without
-                    // it slowing things down at all.
-                    let dist_between_centroids =
-                        &centroid_to_centroid_distances[helper.assigned_centroid_idx][center_c_idx];
-                    helper.upper_bound > 0.5 * dist_between_centroids
-                })
-                // ****
-                // * STEP 3 SECOND HALF PER CENTROID: DISTANCE COMPUTATIONS AND UPDATES (3.a and 3.b) *
-                // ****
-                // Step 3.a: If r(x) then compute d(x, c(x)) and assign r(x) =
-                // false. Otherwise, d(x, c(x)) = u(x).
-                .map(|(point_i, point_h, helper)| {
-                    let possibly_updated_helper_and_distance_from_point_to_current_centroid: (
-                        TIBounds,
-                        f32,
-                    ) = if helper.stale_upper_bound {
-                        let mut h: TIBounds = helper.clone();
-                        let distance_point_to_current_centroid: f32 =
-                            self.emd(point_h, &self.kmeans()[helper.assigned_centroid_idx]);
-                        h.upper_bound = distance_point_to_current_centroid;
+                // _point_i used later for step 4 lookups but unneeded when mutating here
+                .for_each(|(_point_i, (point_h, helper))| {
+                    // STEP 3 FILTERING: Apply all three filter conditions with early exits
+                    // STEP 3.i: Skip if c == c(x) (point already assigned to this centroid)
+                    // STEP 3.ii: Skip if u(x) <= l(x, c) (upper bound not greater than lower bound)
+                    // STEP 3.iii: Skip if u(x) <= (1/2) * d(c(x), c) 
+                    // (i.e. upper bound not greater than half centroid distance)
+                    if center_c_idx == helper.assigned_centroid_idx ||
+                            helper.upper_bound <= helper.lower_bounds[center_c_idx] ||
+                            helper.upper_bound <= 0.5 *
+                                centroid_to_centroid_distances[helper.assigned_centroid_idx][center_c_idx] {
+                        return;
+                    }
+
+                    // STEP 3.a: "If r(x) then compute d(x, c(x)) and assign r(x) = false. 
+                    //           Otherwise, d(x, c(x)) = u(x)."
+                    let current_centroid_dist = if helper.stale_upper_bound {
+                        let dist = self.emd(point_h, &self.kmeans()[helper.assigned_centroid_idx]);
                         // As discussed above: "each time d(x, c) is
                         // calculated for any x and c, its lower bound is
                         // updated by assigning l(x, c) = d(x, c)" and
                         // "u(x) is updated whenever c(x) is changed or d
                         //  (x, c(x)) is computed."
-                        h.lower_bounds[center_c_idx] = distance_point_to_current_centroid;
+                        helper.upper_bound = dist;  // Update u(x) in-place
+                        helper.lower_bounds[helper.assigned_centroid_idx] = dist;  // Update l(x, c(x)) in-place
                         // Step 3.a: If r(x) then compute d(x, c(x)) and assign r(x) =
                         // false. Otherwise, d(x, c(x)) = u(x).
-                        h.stale_upper_bound = false;
-
-                        (h, distance_point_to_current_centroid)
+                        helper.stale_upper_bound = false;  // clear r(x) in-place
+                        dist
                     } else {
-                        (helper.clone(), helper.upper_bound)
+                        // Use existing upper bound as d(x, c(x))
+                        helper.upper_bound
                     };
-                    (
-                        point_i,
-                        point_h,
-                        possibly_updated_helper_and_distance_from_point_to_current_centroid.0,
-                        possibly_updated_helper_and_distance_from_point_to_current_centroid.1,
-                    )
-                })
+
                 // Step 3.b:
-                // If d(x, c(x)) > l(x,c)
-                // or d(x, c(x)) > (1/2) d(c(x), c)
+                //  If d(x, c(x)) > l(x,c)
+                //  or d(x, c(x)) > (1/2) d(c(x), c)
                 // then:
                 //  Compute d(x,c)
                 //  If d(x,c) < d(x, c(x)) then assign c(x) = c
-                .map(
-                    |(point_i, point_h, helper, distance_point_to_current_centroid)| {
-                        let mut out_helper = helper.clone();
-                        // If d(x, c(x)) > l(x,c)
-                        // or d(x, c(x)) > (1/2) d(c(x), c)
-                        if distance_point_to_current_centroid > helper.lower_bounds[center_c_idx]
-                            || distance_point_to_current_centroid >  // (1/2) * d(c(x), c)
-                        0.5 * centroid_to_centroid_distances[
-                            helper.assigned_centroid_idx][center_c_idx]
-                        {
-                            // ... Compute d(x,c)
-                            let distance_point_to_center_c = self.emd(point_h, center_c);
-                            // As discussed above: "each time d(x, c) is
-                            // calculated for any x and c, its lower bound is
-                            // updated by assigning l(x, c) = d(x, c)"
-                            out_helper.lower_bounds[center_c_idx] = distance_point_to_center_c;
-                            // ... If d(x,c) < d(x, c(x)) then assign c(x) = c
-                            // (and implicitly update u(x))
-                            if distance_point_to_center_c < distance_point_to_current_centroid {
-                                out_helper.assigned_centroid_idx = center_c_idx;
-                                // As discussed above: "u(x) is updated
-                                // whenever c(x) is changed or d(x, c(x)) is
-                                // computed." Notably, a couple lines up was
-                                // computing d(x, c) but NOT d(x, c(x)) so no
-                                // need to update except inside here.
-                                out_helper.upper_bound = distance_point_to_center_c
-                            }
-                        }
-                        (point_i, point_h, out_helper)
-                    },
-                )
-                .collect::<Vec<_>>()
-                .into_iter()
-            {
-                step_3_working_points.insert(*point_i, (point_h, helper));
-            }
+                if current_centroid_dist > helper.lower_bounds[center_c_idx] ||
+                        current_centroid_dist >
+                            0.5 * centroid_to_centroid_distances[helper.assigned_centroid_idx][center_c_idx] {
+                    //  ... "Compute d(x,c)"
+                    let dist_to_center_c = self.emd(point_h, center_c);
+                    // (As discussed above: "each time d(x, c) is calculated ...")
+                    helper.lower_bounds[center_c_idx] = dist_to_center_c; // update l(x,c) in place
+                    // ... If d(x,c) < d(x, c(x)) then assign c(x) = c
+                    if dist_to_center_c < current_centroid_dist {
+                        helper.assigned_centroid_idx = center_c_idx;  // Reassign c(x) = c in-place
+                        // As discussed above: "u(x) is updated
+                        // whenever c(x) is changed or d(x, c(x)) is
+                        // computed." Notably, ~2 lines up we
+                        // computing d(x, c), but that's NOT the same as
+                        // d(x, c(x)). So we only need to update upper
+                        // bound if we actually made it into here.
+                        helper.upper_bound = dist_to_center_c // update u(x) in place
+                    }
+                }
+            });
         }
 
         log::debug!("{:<32}", " - Elkan Step 4");
