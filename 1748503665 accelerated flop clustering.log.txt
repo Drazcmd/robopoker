@@ -1,0 +1,253 @@
+07:27:45 [INFO] loading     lookup              [REMOVED FOR GITHUB]robopoker/pgcopy/isomorphism.river
+07:28:29 [INFO] loading     metric              [REMOVED FOR GITHUB]robopoker/pgcopy/metric.river
+07:28:29 [INFO] initializing  kmeans            turn
+07:41:06 [DEBUG] par_init helpers for ti-accl alg
+07:53:41 [INFO] clustering  kmeans              turn
+07:53:41 [DEBUG] Performing training iteration # 0                               
+07:53:41 [DEBUG]  - Elkan Step 1                 
+07:53:41 [DEBUG]  - Elkan Step 2                 
+07:53:42 [DEBUG]  - Elkan Step 3                 
+07:55:32 [DEBUG]  - Elkan Step 4                 
+07:55:39 [DEBUG]  - Elkan Step 5                 
+07:56:43 [DEBUG]  - Elkan Step 6                 
+07:56:43 [DEBUG]  - Elkan Step 7                 
+07:56:43 [DEBUG] Performing training iteration # 1                               
+07:56:43 [DEBUG]  - Elkan Step 1                 
+07:56:43 [DEBUG]  - Elkan Step 2                 
+07:56:43 [DEBUG]  - Elkan Step 3                 
+07:58:34 [DEBUG]  - Elkan Step 4                 
+07:58:41 [DEBUG]  - Elkan Step 5                 
+07:59:44 [DEBUG]  - Elkan Step 6                 
+07:59:44 [DEBUG]  - Elkan Step 7                 
+07:59:45 [DEBUG] Performing training iteration # 2                               
+07:59:45 [DEBUG]  - Elkan Step 1                 
+07:59:45 [DEBUG]  - Elkan Step 2                 
+07:59:45 [DEBUG]  - Elkan Step 3                 
+08:01:36 [DEBUG]  - Elkan Step 4                 
+08:01:43 [DEBUG]  - Elkan Step 5                 
+08:02:46 [DEBUG]  - Elkan Step 6                 
+08:02:46 [DEBUG]  - Elkan Step 7                 
+08:02:47 [DEBUG] Performing training iteration # 3                               
+08:02:47 [DEBUG]  - Elkan Step 1                 
+08:02:47 [DEBUG]  - Elkan Step 2                 
+08:02:47 [DEBUG]  - Elkan Step 3                 
+08:04:36 [DEBUG]  - Elkan Step 4                 
+08:04:44 [DEBUG]  - Elkan Step 5                 
+08:05:47 [DEBUG]  - Elkan Step 6                 
+08:05:47 [DEBUG]  - Elkan Step 7                 
+08:05:47 [DEBUG] Performing training iteration # 4                               
+08:05:47 [DEBUG]  - Elkan Step 1                 
+08:05:47 [DEBUG]  - Elkan Step 2                 
+08:05:47 [DEBUG]  - Elkan Step 3                 
+08:07:37 [DEBUG]  - Elkan Step 4                 
+08:07:44 [DEBUG]  - Elkan Step 5                 
+08:08:47 [DEBUG]  - Elkan Step 6                 
+08:08:47 [DEBUG]  - Elkan Step 7                 
+08:08:48 [DEBUG] Performing training iteration # 5                               
+08:08:48 [DEBUG]  - Elkan Step 1                 
+08:08:48 [DEBUG]  - Elkan Step 2                 
+08:08:48 [DEBUG]  - Elkan Step 3                 
+08:10:37 [DEBUG]  - Elkan Step 4                 
+08:10:45 [DEBUG]  - Elkan Step 5                 
+08:11:48 [DEBUG]  - Elkan Step 6                 
+08:11:48 [DEBUG]  - Elkan Step 7                 
+08:11:48 [DEBUG] Performing training iteration # 6                               
+08:11:48 [DEBUG]  - Elkan Step 1                 
+08:11:48 [DEBUG]  - Elkan Step 2                 
+08:11:48 [DEBUG]  - Elkan Step 3                 
+08:13:38 [DEBUG]  - Elkan Step 4                 
+08:13:45 [DEBUG]  - Elkan Step 5                 
+08:14:48 [DEBUG]  - Elkan Step 6                 
+08:14:48 [DEBUG]  - Elkan Step 7                 
+08:14:49 [DEBUG] Performing training iteration # 7                               
+08:14:49 [DEBUG]  - Elkan Step 1                 
+08:14:49 [DEBUG]  - Elkan Step 2                 
+08:14:49 [DEBUG]  - Elkan Step 3                 
+08:16:38 [DEBUG]  - Elkan Step 4                 
+08:16:46 [DEBUG]  - Elkan Step 5                 
+08:17:49 [DEBUG]  - Elkan Step 6                 
+08:17:49 [DEBUG]  - Elkan Step 7                 
+08:17:49 [DEBUG] Performing training iteration # 8                               
+08:17:49 [DEBUG]  - Elkan Step 1                 
+08:17:50 [DEBUG]  - Elkan Step 2                 
+08:17:50 [DEBUG]  - Elkan Step 3                 
+08:19:39 [DEBUG]  - Elkan Step 4                 
+08:19:47 [DEBUG]  - Elkan Step 5                 
+08:20:50 [DEBUG]  - Elkan Step 6                 
+08:20:50 [DEBUG]  - Elkan Step 7                 
+08:20:50 [DEBUG] Performing training iteration # 9                               
+08:20:50 [DEBUG]  - Elkan Step 1                 
+08:20:50 [DEBUG]  - Elkan Step 2                 
+08:20:50 [DEBUG]  - Elkan Step 3                 
+08:22:39 [DEBUG]  - Elkan Step 4                 
+08:22:47 [DEBUG]  - Elkan Step 5                 
+08:23:50 [DEBUG]  - Elkan Step 6                 
+08:23:50 [DEBUG]  - Elkan Step 7                 
+08:23:51 [DEBUG] Performing training iteration # 10                              
+08:23:51 [DEBUG]  - Elkan Step 1                 
+08:23:51 [DEBUG]  - Elkan Step 2                 
+08:23:51 [DEBUG]  - Elkan Step 3                 
+08:25:40 [DEBUG]  - Elkan Step 4                 
+08:25:48 [DEBUG]  - Elkan Step 5                 
+08:26:51 [DEBUG]  - Elkan Step 6                 
+08:26:51 [DEBUG]  - Elkan Step 7                 
+08:26:51 [DEBUG] Performing training iteration # 11                              
+08:26:51 [DEBUG]  - Elkan Step 1                 
+08:26:51 [DEBUG]  - Elkan Step 2                 
+08:26:51 [DEBUG]  - Elkan Step 3                 
+08:28:40 [DEBUG]  - Elkan Step 4                 
+08:28:48 [DEBUG]  - Elkan Step 5                 
+08:29:51 [DEBUG]  - Elkan Step 6                 
+08:29:51 [DEBUG]  - Elkan Step 7                 
+08:29:51 [DEBUG] Performing training iteration # 12                              
+08:29:51 [DEBUG]  - Elkan Step 1                 
+08:29:51 [DEBUG]  - Elkan Step 2                 
+08:29:52 [DEBUG]  - Elkan Step 3                 
+08:31:41 [DEBUG]  - Elkan Step 4                 
+08:31:48 [DEBUG]  - Elkan Step 5                 
+08:32:51 [DEBUG]  - Elkan Step 6                 
+08:32:51 [DEBUG]  - Elkan Step 7                 
+08:32:52 [DEBUG] Performing training iteration # 13                              
+08:32:52 [DEBUG]  - Elkan Step 1                 
+08:32:52 [DEBUG]  - Elkan Step 2                 
+08:32:52 [DEBUG]  - Elkan Step 3                 
+08:34:41 [DEBUG]  - Elkan Step 4                 
+08:34:49 [DEBUG]  - Elkan Step 5                 
+08:35:52 [DEBUG]  - Elkan Step 6                 
+08:35:52 [DEBUG]  - Elkan Step 7                 
+08:35:52 [DEBUG] Performing training iteration # 14                              
+08:35:52 [DEBUG]  - Elkan Step 1                 
+08:35:53 [DEBUG]  - Elkan Step 2                 
+08:35:53 [DEBUG]  - Elkan Step 3                 
+08:37:42 [DEBUG]  - Elkan Step 4                 
+08:37:50 [DEBUG]  - Elkan Step 5                 
+08:38:53 [DEBUG]  - Elkan Step 6                 
+08:38:53 [DEBUG]  - Elkan Step 7                 
+08:38:54 [DEBUG] Performing training iteration # 15                              
+08:38:54 [DEBUG]  - Elkan Step 1                 
+08:38:54 [DEBUG]  - Elkan Step 2                 
+08:38:54 [DEBUG]  - Elkan Step 3                 
+08:40:43 [DEBUG]  - Elkan Step 4                 
+08:40:51 [DEBUG]  - Elkan Step 5                 
+08:41:54 [DEBUG]  - Elkan Step 6                 
+08:41:54 [DEBUG]  - Elkan Step 7                 
+08:41:55 [DEBUG] Performing training iteration # 16                              
+08:41:55 [DEBUG]  - Elkan Step 1                 
+08:41:55 [DEBUG]  - Elkan Step 2                 
+08:41:55 [DEBUG]  - Elkan Step 3                 
+08:43:44 [DEBUG]  - Elkan Step 4                 
+08:43:52 [DEBUG]  - Elkan Step 5                 
+08:44:55 [DEBUG]  - Elkan Step 6                 
+08:44:55 [DEBUG]  - Elkan Step 7                 
+08:44:55 [DEBUG] Performing training iteration # 17                              
+08:44:55 [DEBUG]  - Elkan Step 1                 
+08:44:55 [DEBUG]  - Elkan Step 2                 
+08:44:55 [DEBUG]  - Elkan Step 3                 
+08:46:44 [DEBUG]  - Elkan Step 4                 
+08:46:52 [DEBUG]  - Elkan Step 5                 
+08:47:55 [DEBUG]  - Elkan Step 6                 
+08:47:55 [DEBUG]  - Elkan Step 7                 
+08:47:56 [DEBUG] Performing training iteration # 18                              
+08:47:56 [DEBUG]  - Elkan Step 1                 
+08:47:56 [DEBUG]  - Elkan Step 2                 
+08:47:56 [DEBUG]  - Elkan Step 3                 
+08:49:45 [DEBUG]  - Elkan Step 4                 
+08:49:53 [DEBUG]  - Elkan Step 5                 
+08:50:56 [DEBUG]  - Elkan Step 6                 
+08:50:56 [DEBUG]  - Elkan Step 7                 
+08:50:56 [DEBUG] Performing training iteration # 19                              
+08:50:56 [DEBUG]  - Elkan Step 1                 
+08:50:56 [DEBUG]  - Elkan Step 2                 
+08:50:56 [DEBUG]  - Elkan Step 3                 
+08:52:45 [DEBUG]  - Elkan Step 4                 
+08:52:53 [DEBUG]  - Elkan Step 5                 
+08:53:56 [DEBUG]  - Elkan Step 6                 
+08:53:56 [DEBUG]  - Elkan Step 7                 
+08:53:57 [DEBUG] Performing training iteration # 20                              
+08:53:57 [DEBUG]  - Elkan Step 1                 
+08:53:57 [DEBUG]  - Elkan Step 2                 
+08:53:57 [DEBUG]  - Elkan Step 3                 
+08:55:46 [DEBUG]  - Elkan Step 4                 
+08:55:54 [DEBUG]  - Elkan Step 5                 
+08:56:56 [DEBUG]  - Elkan Step 6                 
+08:56:56 [DEBUG]  - Elkan Step 7                 
+08:56:57 [DEBUG] Performing training iteration # 21                              
+08:56:57 [DEBUG]  - Elkan Step 1                 
+08:56:57 [DEBUG]  - Elkan Step 2                 
+08:56:57 [DEBUG]  - Elkan Step 3                 
+08:58:46 [DEBUG]  - Elkan Step 4                 
+08:58:54 [DEBUG]  - Elkan Step 5                 
+08:59:57 [DEBUG]  - Elkan Step 6                 
+08:59:57 [DEBUG]  - Elkan Step 7                 
+08:59:57 [DEBUG] Performing training iteration # 22                              
+08:59:57 [DEBUG]  - Elkan Step 1                 
+08:59:57 [DEBUG]  - Elkan Step 2                 
+08:59:57 [DEBUG]  - Elkan Step 3                 
+09:01:47 [DEBUG]  - Elkan Step 4                 
+09:01:54 [DEBUG]  - Elkan Step 5                 
+09:02:57 [DEBUG]  - Elkan Step 6                 
+09:02:57 [DEBUG]  - Elkan Step 7                 
+09:02:58 [DEBUG] Performing training iteration # 23                              
+09:02:58 [DEBUG]  - Elkan Step 1                 
+09:02:58 [DEBUG]  - Elkan Step 2                 
+09:02:58 [DEBUG]  - Elkan Step 3                 
+09:04:47 [DEBUG]  - Elkan Step 4                 
+09:04:55 [DEBUG]  - Elkan Step 5                 
+09:05:58 [DEBUG]  - Elkan Step 6                 
+09:05:58 [DEBUG]  - Elkan Step 7                 
+09:05:59 [INFO] calculating metric              turn
+09:05:59 [INFO] saving      metric              [REMOVED FOR GITHUB]robopoker/pgcopy/metric.turn
+09:05:59 [INFO] calculating lookup              turn
+09:19:23 [INFO] saving      lookup              [REMOVED FOR GITHUB]robopoker/pgcopy/isomorphism.turn
+09:19:30 [INFO] calculating transitions         turn
+09:19:30 [INFO] saving      transition          [REMOVED FOR GITHUB]robopoker/pgcopy/transitions.turn
+09:19:30 [INFO] loading     lookup              [REMOVED FOR GITHUB]robopoker/pgcopy/isomorphism.turn
+09:19:36 [INFO] loading     metric              [REMOVED FOR GITHUB]robopoker/pgcopy/metric.turn
+09:19:37 [INFO] initializing  kmeans            flop
+15:25:54 [DEBUG] par_init helpers for ti-accl alg
+21:31:42 [INFO] clustering  kmeans              flop
+21:31:42 [DEBUG] Performing training iteration # 0                               
+21:31:42 [DEBUG]  - Elkan Step 1                 
+21:31:57 [DEBUG]  - Elkan Step 2                 
+21:31:57 [DEBUG]  - Elkan Step 3                 
+22:53:09 [DEBUG]  - Elkan Step 4                 
+22:53:09 [DEBUG]  - Elkan Step 5                 
+22:53:20 [DEBUG]  - Elkan Step 6                 
+22:53:20 [DEBUG]  - Elkan Step 7                 
+22:53:20 [DEBUG] Performing training iteration # 1                               
+22:53:20 [DEBUG]  - Elkan Step 1                 
+22:53:36 [DEBUG]  - Elkan Step 2                 
+22:53:36 [DEBUG]  - Elkan Step 3                 
+00:14:44 [DEBUG]  - Elkan Step 4                 
+00:14:45 [DEBUG]  - Elkan Step 5                 
+00:14:55 [DEBUG]  - Elkan Step 6                 
+00:14:55 [DEBUG]  - Elkan Step 7                 
+00:14:55 [DEBUG] Performing training iteration # 2                               
+00:14:55 [DEBUG]  - Elkan Step 1                 
+00:15:10 [DEBUG]  - Elkan Step 2                 
+00:15:10 [DEBUG]  - Elkan Step 3                 
+01:36:17 [DEBUG]  - Elkan Step 4                 
+01:36:18 [DEBUG]  - Elkan Step 5                 
+01:36:29 [DEBUG]  - Elkan Step 6                 
+01:36:29 [DEBUG]  - Elkan Step 7                 
+01:36:29 [DEBUG] Performing training iteration # 3                               
+01:36:29 [DEBUG]  - Elkan Step 1                 
+01:36:44 [DEBUG]  - Elkan Step 2                 
+01:36:44 [DEBUG]  - Elkan Step 3                 
+02:57:59 [DEBUG]  - Elkan Step 4                 
+02:57:59 [DEBUG]  - Elkan Step 5                 
+02:58:10 [DEBUG]  - Elkan Step 6                 
+02:58:10 [DEBUG]  - Elkan Step 7                 
+02:58:10 [DEBUG] Performing training iteration # 4                               
+02:58:10 [DEBUG]  - Elkan Step 1                 
+02:58:25 [DEBUG]  - Elkan Step 2                 
+02:58:25 [DEBUG]  - Elkan Step 3                 
+04:19:37 [DEBUG]  - Elkan Step 4                 
+04:19:38 [DEBUG]  - Elkan Step 5                 
+04:19:49 [DEBUG]  - Elkan Step 6                 
+04:19:49 [DEBUG]  - Elkan Step 7                 
+04:19:49 [DEBUG] Performing training iteration # 5                               
+04:19:49 [DEBUG]  - Elkan Step 1                 
+04:20:04 [DEBUG]  - Elkan Step 2                 
+04:20:04 [DEBUG]  - Elkan Step 3                 
+05:19:45 [WARN] forcing exit

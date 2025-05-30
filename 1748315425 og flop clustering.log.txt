@@ -1,0 +1,70 @@
+03:10:25 [INFO] loading     lookup              [REMOVED FOR GITHUB]robopoker/pgcopy/isomorphism.river
+03:11:09 [INFO] loading     metric              [REMOVED FOR GITHUB]robopoker/pgcopy/metric.river
+03:11:10 [INFO] initialize  kmeans              turn
+03:23:44 [INFO] clustering  kmeans              turn
+03:23:44 [INFO]  - # training iterations 't':   24                              
+03:23:44 [DEBUG] Starting training iteration:    24                              
+03:36:09 [DEBUG] abstraction cluster RMS error   0.03912214                      
+03:36:09 [DEBUG] Starting training iteration:    24                              
+03:48:34 [DEBUG] abstraction cluster RMS error   0.03912214                      
+03:48:34 [DEBUG] Starting training iteration:    24                              
+04:01:00 [DEBUG] abstraction cluster RMS error   0.03912214                      
+04:01:00 [DEBUG] Starting training iteration:    24                              
+04:13:25 [DEBUG] abstraction cluster RMS error   0.03912214                      
+04:13:25 [DEBUG] Starting training iteration:    24                              
+04:25:51 [DEBUG] abstraction cluster RMS error   0.03912214                      
+04:25:51 [DEBUG] Starting training iteration:    24                              
+04:38:17 [DEBUG] abstraction cluster RMS error   0.03912214                      
+04:38:17 [DEBUG] Starting training iteration:    24                              
+04:50:43 [DEBUG] abstraction cluster RMS error   0.03912214                      
+04:50:43 [DEBUG] Starting training iteration:    24                              
+05:03:08 [DEBUG] abstraction cluster RMS error   0.03912214                      
+05:03:08 [DEBUG] Starting training iteration:    24                              
+05:15:32 [DEBUG] abstraction cluster RMS error   0.03912214                      
+05:15:32 [DEBUG] Starting training iteration:    24                              
+05:27:56 [DEBUG] abstraction cluster RMS error   0.03912214                      
+05:27:56 [DEBUG] Starting training iteration:    24                              
+05:40:22 [DEBUG] abstraction cluster RMS error   0.03912214                      
+05:40:22 [DEBUG] Starting training iteration:    24                              
+05:52:48 [DEBUG] abstraction cluster RMS error   0.03912214                      
+05:52:48 [DEBUG] Starting training iteration:    24                              
+06:05:14 [DEBUG] abstraction cluster RMS error   0.03912214                      
+06:05:14 [DEBUG] Starting training iteration:    24                              
+06:18:23 [DEBUG] abstraction cluster RMS error   0.03912214                      
+06:18:23 [DEBUG] Starting training iteration:    24                              
+06:30:53 [DEBUG] abstraction cluster RMS error   0.03912214                      
+06:30:53 [DEBUG] Starting training iteration:    24                              
+06:43:20 [DEBUG] abstraction cluster RMS error   0.03912214                      
+06:43:20 [DEBUG] Starting training iteration:    24                              
+06:55:46 [DEBUG] abstraction cluster RMS error   0.03912214                      
+06:55:46 [DEBUG] Starting training iteration:    24                              
+07:08:12 [DEBUG] abstraction cluster RMS error   0.03912214                      
+07:08:12 [DEBUG] Starting training iteration:    24                              
+07:20:37 [DEBUG] abstraction cluster RMS error   0.03912214                      
+07:20:37 [DEBUG] Starting training iteration:    24                              
+07:33:13 [DEBUG] abstraction cluster RMS error   0.03912214                      
+07:33:13 [DEBUG] Starting training iteration:    24                              
+07:45:39 [DEBUG] abstraction cluster RMS error   0.03912214                      
+07:45:39 [DEBUG] Starting training iteration:    24                              
+07:58:04 [DEBUG] abstraction cluster RMS error   0.03912214                      
+07:58:04 [DEBUG] Starting training iteration:    24                              
+08:10:38 [DEBUG] abstraction cluster RMS error   0.03912214                      
+08:10:38 [DEBUG] Starting training iteration:    24                              
+08:23:04 [DEBUG] abstraction cluster RMS error   0.03912214                      
+08:23:04 [INFO] calculating metric              turn
+08:23:05 [INFO] saving      metric              [REMOVED FOR GITHUB]robopoker/pgcopy/metric.turn
+08:23:05 [INFO] calculating lookup              turn
+08:35:46 [INFO] saving      lookup              [REMOVED FOR GITHUB]robopoker/pgcopy/isomorphism.turn
+08:35:52 [INFO] calculating transitions         turn
+08:35:52 [INFO] saving      transition          [REMOVED FOR GITHUB]robopoker/pgcopy/transitions.turn
+08:35:53 [INFO] loading     lookup              [REMOVED FOR GITHUB]robopoker/pgcopy/isomorphism.turn
+08:35:59 [INFO] loading     metric              [REMOVED FOR GITHUB]robopoker/pgcopy/metric.turn
+08:35:59 [INFO] initialize  kmeans              flop
+14:42:59 [INFO] clustering  kmeans              flop
+14:42:59 [INFO]  - # training iterations 't':   20                              
+14:42:59 [DEBUG] Starting training iteration:    20                              
+20:52:32 [DEBUG] abstraction cluster RMS error   0.05807109                      
+20:52:32 [DEBUG] Starting training iteration:    20                              
+03:02:51 [DEBUG] abstraction cluster RMS error   0.05807109                      
+03:02:51 [DEBUG] Starting training iteration:    20                              
+04:14:42 [WARN] forcing exit
