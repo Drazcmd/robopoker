@@ -1,0 +1,44 @@
+20:18:29 [INFO] loading     lookup              [REMOVED FOR GITHUB]/robopoker/pgcopy/isomorphism.river
+20:19:12 [INFO] loading     metric              [REMOVED FOR GITHUB]/robopoker/pgcopy/metric.river
+20:19:13 [INFO] initialize  kmeans              turn
+20:31:54 [INFO] clustering  kmeans              turn
+20:31:54 [INFO]  - # training iterations 't':   24                              
+21:49:05 [DEBUG] Starting training iteration:    24                              
+21:49:05 [INFO]  - STEP 1 (remove me later)     
+21:49:05 [INFO]  - STEP 2 (remove me later)     
+21:49:05 [INFO]  - STEP 3 (remove me later)     
+22:29:47 [INFO]  - STEP 4 (remove me later)     
+22:29:55 [INFO]  - STEP 5 (remove me later)     
+22:49:02 [INFO]  - STEP 6 (remove me later)     
+22:49:46 [INFO]  - STEP 7 (remove me later)     
+22:49:47 [DEBUG] Starting training iteration:    24                              
+22:49:47 [INFO]  - STEP 1 (remove me later)     
+22:49:47 [INFO]  - STEP 2 (remove me later)     
+22:49:47 [INFO]  - STEP 3 (remove me later)     
+23:30:42 [INFO]  - STEP 4 (remove me later)     
+23:30:50 [INFO]  - STEP 5 (remove me later)     
+23:49:57 [INFO]  - STEP 6 (remove me later)     
+23:50:41 [INFO]  - STEP 7 (remove me later)     
+23:50:41 [DEBUG] Starting training iteration:    24                              
+23:50:41 [INFO]  - STEP 1 (remove me later)     
+23:50:42 [INFO]  - STEP 2 (remove me later)     
+23:50:42 [INFO]  - STEP 3 (remove me later)     
+00:31:37 [INFO]  - STEP 4 (remove me later)     
+00:31:45 [INFO]  - STEP 5 (remove me later)     
+00:50:51 [INFO]  - STEP 6 (remove me later)     
+00:51:36 [INFO]  - STEP 7 (remove me later)     
+00:51:36 [DEBUG] Starting training iteration:    24                              
+00:51:36 [INFO]  - STEP 1 (remove me later)     
+00:51:36 [INFO]  - STEP 2 (remove me later)     
+00:51:36 [INFO]  - STEP 3 (remove me later)     
+01:32:32 [INFO]  - STEP 4 (remove me later)     
+01:32:39 [INFO]  - STEP 5 (remove me later)     
+01:51:46 [INFO]  - STEP 6 (remove me later)     
+01:52:31 [INFO]  - STEP 7 (remove me later)     
+01:52:31 [DEBUG] Starting training iteration:    24                              
+01:52:31 [INFO]  - STEP 1 (remove me later)     
+01:52:31 [INFO]  - STEP 2 (remove me later)     
+01:52:31 [INFO]  - STEP 3 (remove me later)     
+02:33:26 [INFO]  - STEP 4 (remove me later)     
+02:33:34 [INFO]  - STEP 5 (remove me later)     
+02:48:33 [WARN] forcing exit
