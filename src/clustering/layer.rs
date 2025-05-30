@@ -300,10 +300,10 @@ impl Layer {
         // TODO: panic if the length of ti_helpers doesn't match the length of
         // self.points
 
+        use indicatif::ParallelProgressIterator;
         use rayon::iter::IndexedParallelIterator;
         use rayon::iter::IntoParallelRefIterator;
         use rayon::iter::ParallelIterator;
-        use indicatif::ParallelProgressIterator;
 
         let k = self.street().k();
         // TODO start tracking loss like in the other approach!
@@ -527,10 +527,18 @@ impl Layer {
                             // "u(x) is updated whenever c(x) is changed or d
                             //  (x, c(x)) is computed."
                             out_helper.lower_bounds[center_c_idx] = distance_point_to_center_c;
-
+                            if distance_point_to_center_c < out_helper.upper_bound {
+                                out_helper.upper_bound = distance_point_to_center_c
+                            }
                             // ... If d(x,c) < d(x, c(x)) then assign c(x) = c
                             if distance_point_to_center_c < distance_point_to_current_centroid {
                                 out_helper.assigned_centroid_idx = center_c_idx;
+                                // Technically since reassigning c(x) we should update
+                                // the upper bound. BUT, we already did about 5 lines up
+                                // anyways, so no need.
+                                // if distance_point_to_center_c < out_helper.upper_bound {
+                                //      out_helper.upper_bound = distance_point_to_center_c
+                                // }
                             }
                         }
                         (point_i, point_h, out_helper)
