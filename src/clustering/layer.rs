@@ -693,6 +693,7 @@ impl Layer {
         let nearest_neighbors: Vec<Neighbor> = self
             .points()
             .par_iter()
+            // TODO: Add styling so that this matches all the other progress bars!
             .progress_count(self.points().len().try_into().unwrap())
             .map(|point| {
                 // Compute min distance d(x, c) efficiently by using
