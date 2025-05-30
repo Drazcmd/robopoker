@@ -523,22 +523,18 @@ impl Layer {
                             let distance_point_to_center_c = self.emd(point_h, center_c);
                             // As discussed above: "each time d(x, c) is
                             // calculated for any x and c, its lower bound is
-                            // updated by assigning l(x, c) = d(x, c)" and
-                            // "u(x) is updated whenever c(x) is changed or d
-                            //  (x, c(x)) is computed."
+                            // updated by assigning l(x, c) = d(x, c)"
                             out_helper.lower_bounds[center_c_idx] = distance_point_to_center_c;
-                            if distance_point_to_center_c < out_helper.upper_bound {
-                                out_helper.upper_bound = distance_point_to_center_c
-                            }
                             // ... If d(x,c) < d(x, c(x)) then assign c(x) = c
+                            // (and implicitly update u(x))
                             if distance_point_to_center_c < distance_point_to_current_centroid {
                                 out_helper.assigned_centroid_idx = center_c_idx;
-                                // Technically since reassigning c(x) we should update
-                                // the upper bound. BUT, we already did about 5 lines up
-                                // anyways, so no need.
-                                // if distance_point_to_center_c < out_helper.upper_bound {
-                                //      out_helper.upper_bound = distance_point_to_center_c
-                                // }
+                                // As discussed above: "u(x) is updated
+                                // whenever c(x) is changed or d(x, c(x)) is
+                                // computed." Notably, a couple lines up was
+                                // computing d(x, c) but NOT d(x, c(x)) so no
+                                // need to update except inside here.
+                                out_helper.upper_bound = distance_point_to_center_c
                             }
                         }
                         (point_i, point_h, out_helper)
