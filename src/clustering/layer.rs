@@ -8,6 +8,7 @@ use crate::cards::isomorphism::Isomorphism;
 use crate::cards::isomorphisms::IsomorphismIterator;
 use crate::cards::street::Street;
 use crate::Energy;
+use indicatif::ProgressIterator;
 use rand::distributions::Distribution;
 use rand::distributions::WeightedIndex;
 use std::collections::BTreeMap;
@@ -80,32 +81,44 @@ impl Layer {
         let init = &mut self.init(); // note: may take a little bit to run!
         let last = &mut self.kmeans;
         std::mem::swap(init, last);
-
         let t = self.street().t();
 
-        // Initialization from Elkan (2003) immediately prior to the 7-step
-        // triangle inequality-based accelereated k-means algorithm.
-        // """
-        // First, pick initial centers. Set the lower bound l(x,c) for each point x
-        // and center c. Assign each x to its closest initial center c(x) =
-        // argmin_c d(x,c), using Lemma 1 to avoid redundant distance
-        // calculations. Each time d(x,c) is computed, set l(x,c) = d(x,c). Assign
-        // upper bounds u(x) = min_c d(x,c).
-        // """
-        //
-        // ********
-        // TODO: We're very likely doing redundant distance calculations here!
-        // Since we're effectively choosing the closet initial centers WITHOUT
-        // properly using Lemma 1 to avoid redundant distance computations
-        // ********
-        log::debug!(
-            "Initializing helpers for triangle-inequality based acceleration of clustering"
-        );
+        // TODO: Replace this with something less hacky + controllable
+        // programmatically from outside of this function.
+        // let triangle_accelerate_todo_replaceme = false;
         let triangle_accelerate_todo_replaceme = true;
-        let mut ti_helpers: Vec<TIBounds> = Vec::new();
-        if triangle_accelerate_todo_replaceme {
-            for helper in self
-                .compute_initial_centroids_per_point()
+        if !triangle_accelerate_todo_replaceme {
+            log::info!(
+                "{:<32}{:<32}",
+                "clustering kmeans (unaccelerated)",
+                self.street()
+            );
+            let progress = crate::progress(t);
+            for _ in 0..t {
+                let ref next_kmeans = self.compute_next_centroids();
+                let ref mut mut_kmeans = self.kmeans();
+                *mut_kmeans = next_kmeans;
+                progress.inc(1);
+            }
+            progress.finish();
+            println!();
+        } else {
+            // if triangle_accelerate_todo_replaceme
+            // Use Triangle Inequality (TI) math to accelerate the K-means
+            // clustering, as per Elkan (2003).
+
+            log::debug!(
+                "Initializing helpers for triangle-inequality (TI) accelerated of clustering"
+            );
+            // """
+            // First, pick initial centers. Set the lower bound l(x,c) for each point x
+            // and center c. Assign each x to its closest initial center c(x) =
+            // argmin_c d(x,c), using Lemma 1 to avoid redundant distance
+            // calculations. Each time d(x,c) is computed, set l(x,c) = d(x,c). Assign
+            // upper bounds u(x) = min_c d(x,c).
+            // """
+            let ti_helpers: Vec<TIBounds> = self
+                .create_centroids_ti_accl()
                 .iter()
                 .map(|nearest_neighbor| TIBounds {
                     // "c(x)"'s index in self.kmeans()
@@ -124,37 +137,34 @@ impl Layer {
                     // so it should theoretically be safe to leave 'false' here.)
                     stale_upper_bound: false,
                 })
-                .collect::<Vec<_>>()
-            {
-                ti_helpers.push(helper);
-            }
-            log::debug!("Completed initialization. Now performing accelerated clustering.")
-        }
+                .collect::<Vec<_>>();
+            log::debug!("Completed TI helper initialization.");
 
-        log::info!("{:<32}{:<32}", "clustering  kmeans", self.street());
-        let progress = crate::progress(t);
-        // WIP: Need to verify results are actually the same (and that it
-        // really speeds things up in practice). As per the paper:
-        //
-        // """
-        // We want the accelerated k-means algorithm to be usable wherever the
-        // standard algorithm is used. Therefore, we need the accelerated
-        // algorithm to satisfy three properties. First, it should be able to
-        // start with any initial centers, so that all existing
-        // initialization methods can continue to be used. Second, given the
-        // same initial centers, it should al- ways produce exactly the same
-        // final centers as the standard algorithm. Third, it should be able
-        // to use any black-box distance metric, so it should not rely for
-        // example on optimizations specific to Euclidean distance.
-        //
-        // Our algorithm in fact satisfies a condition stronger than the
-        // second one above: after each iteration, it produces the same set
-        // of center locations as the standard k-means method.
-        // """
-        for i in 0..t {
-            log::debug!("{:<32}{:<32}", "Performing training iteration # ", i);
-
-            if triangle_accelerate_todo_replaceme {
+            log::info!(
+                "{:<32}{:<32}",
+                "clustering kmeans (*accelerated*)",
+                self.street()
+            );
+            // TODO: Verify results are actually the same from here as in the
+            // pre-existing, non-accelerated algorithm above. As per the paper:
+            // """
+            // We want the accelerated k-means algorithm to be usable wherever the
+            // standard algorithm is used. Therefore, we need the accelerated
+            // algorithm to satisfy three properties. First, it should be able to
+            // start with any initial centers, so that all existing
+            // initialization methods can continue to be used. Second, given the
+            // same initial centers, it should al- ways produce exactly the same
+            // final centers as the standard algorithm. Third, it should be able
+            // to use any black-box distance metric, so it should not rely for
+            // example on optimizations specific to Euclidean distance.
+            //
+            // Our algorithm in fact satisfies a condition stronger than the
+            // second one above: after each iteration, it produces the same set
+            // of center locations as the standard k-means method.
+            // """
+            // TODO: Add styling to progress bar
+            for i in (0..t).progress() {
+                log::debug!("{:<32}{:<32}", "Performing training iteration # ", i);
                 let (ref next_kmeans, ref next_helpers) =
                     self.compute_next_centroids_ti_accl(&ti_helpers);
 
@@ -163,16 +173,8 @@ impl Layer {
 
                 let mut_helpers = &mut (&ti_helpers);
                 *mut_helpers = next_helpers
-            } else {
-                let ref next_kmeans = self.compute_next_centroids();
-
-                let ref mut mut_kmeans = self.kmeans();
-                *mut_kmeans = next_kmeans;
             }
-            progress.inc(1);
         }
-        progress.finish();
-        println!();
         self
     }
 
@@ -641,7 +643,7 @@ impl Layer {
     /// using lemma 1 from Elkan (2003) to aboid redundant distance
     /// calculations. Allowing us to efficient assign each point to
     /// its initial centroid.
-    fn compute_initial_centroids_per_point(&self) -> Vec<Neighbor> {
+    fn create_centroids_ti_accl(&self) -> Vec<Neighbor> {
         use indicatif::ParallelProgressIterator;
         use rayon::iter::IntoParallelRefIterator;
         use rayon::iter::ParallelIterator;
