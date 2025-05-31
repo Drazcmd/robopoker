@@ -104,28 +104,6 @@ impl Layer {
         let triangle_accelerate_todo_replaceme = true;
         let mut ti_helpers: Vec<TIBounds> = Vec::new();
         if triangle_accelerate_todo_replaceme {
-            // **** TESTING OUT NEW APPROACH BELOW ****
-            // use indicatif::ParallelProgressIterator;
-            // log::debug!("{:<32}", "par_init helpers for ti-accl alg");
-            // use rayon::iter::IntoParallelRefIterator;
-            // use rayon::iter::ParallelIterator;
-            // for helper in
-            // self
-            //    .points()
-            //    .par_iter()
-            //    // Create additional separate Indicatif 'progress' bar tied to
-            //    // the parallel iterator.
-            //    // TODO: might want to remove this if we don't want to have
-            //    // rayon becoming a dependancy for indicatif. Since using
-            //    // this requires listing rayon as a feature in the
-            //    // cargo.toml + letting cargo fmt put rayon as a dependency
-            //    // in the cargo.lock)
-            //    // TODO: Figure out how to add styling to this while still
-            //    // keeping it the right length. (.progress_count() doesn't
-            //    // seem to allow styling, and .progress_with_style() doesn't
-            //    // seem to allow a length...?)
-            //    .progress_count(self.points().len().try_into().unwrap())
-            //    .map(|x| self.neighborhood(x))
             for helper in self
                 .compute_initial_centroids_per_point()
                 .iter()
@@ -150,7 +128,7 @@ impl Layer {
             {
                 ti_helpers.push(helper);
             }
-            log::debug!("Done with helper initializaiton. Starting triangle-inequality accelerated clustering now!")
+            log::debug!("Completed initialization. Now performing accelerated clustering.")
         }
 
         log::info!("{:<32}{:<32}", "clustering  kmeans", self.street());
