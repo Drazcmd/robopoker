@@ -81,12 +81,18 @@ impl Layer {
         let init = &mut self.init(); // note: may take a little bit to run!
         let last = &mut self.kmeans;
         std::mem::swap(init, last);
+
+        let k = self.street().k();
+        if k == 0 {
+            return self;
+        }
         let t = self.street().t();
+
 
         // TODO: Replace this with something less hacky + controllable
         // programmatically from outside of this function.
-        // let triangle_accelerate_todo_replaceme = false;
         let triangle_accelerate_todo_replaceme = true;
+        // let triangle_accelerate_todo_replaceme = true;
         if !triangle_accelerate_todo_replaceme {
             log::info!(
                 "{:<32}{:<32}",
@@ -103,7 +109,6 @@ impl Layer {
             progress.finish();
             println!();
         } else {
-            // if triangle_accelerate_todo_replaceme
             // Use Triangle Inequality (TI) math to accelerate the K-means
             // clustering, as per Elkan (2003).
 
@@ -298,6 +303,7 @@ impl Layer {
         use rayon::iter::ParallelIterator;
 
         let k = self.street().k();
+
         // TODO start tracking loss like in the other approach!
         // let mut loss = 0f32;
 
@@ -641,7 +647,7 @@ impl Layer {
 
     /// Obtains nearest neighbor and separation distance for a Histogram
     /// using lemma 1 from Elkan (2003) to aboid redundant distance
-    /// calculations. Allowing us to efficient assign each point to
+    /// calculations. Allowing us to efficiently assign each point to
     /// its initial centroid.
     fn create_centroids_ti_accl(&self) -> Vec<Neighbor> {
         use indicatif::ParallelProgressIterator;
@@ -841,5 +847,67 @@ impl crate::save::upload::Table for Layer {
     }
     fn sources() -> Vec<String> {
         unimplemented!()
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::clustering::emd::EMD;
+    use crate::Arbitrary;
+
+    // This test is deliberately NOT using the 'public API' / testing internal
+    // details of the implementation, which is not a typical "best practice".
+    // We explicitly make this tradeoff because the performance improvements
+    // of the triangle-inequality accelerated algorithm are so massive -
+    // meaning that it's worth it in order to prove as much as possible that
+    // its results are going to always match the unaccelerated algorithm at
+    // every step.
+    // TODO: Consider update the Layer code itself so we don't need to be
+    // reliant on so many private implementation details here.
+    #[test] fn test_clustering_results_match() {
+        // Create identical point sets for both layers to ensure deterministic comparison
+        let shared_points = {
+            let mut points = Vec::new();
+            for _ in 0..5 {
+                let emd = EMD::random();
+                let (_, h1, h2, h3) = emd.inner();
+                // TODO: Not sure if this really makes sense... should we just
+                // be using one point per EMD ?
+                points.push(h1);
+                points.push(h2);
+                points.push(h3);
+            }
+            points
+        };
+        // Creating two identical Layer-s to verify clustering results will match
+        let mut layer_nk = Layer {
+            street: Street::Flop,
+            kmeans: Vec::default(),
+            points: shared_points.clone(),
+            metric: Metric::default(),
+        };
+
+        // Create second layer with identical configuration
+        let mut layer_tiaccl= Layer {
+            street: Street::Flop,
+            kmeans: Vec::default(),
+            points: shared_points.clone(),
+            metric: Metric::default(),
+        };
+
+        // Double check that the initial state is identical
+        assert_eq!(layer_nk.street(), layer_tiaccl.street());
+        assert_eq!(layer_nk.points().len(), layer_tiaccl.points().len());
+        assert!(layer_nk.kmeans().is_empty());
+        assert!(layer_tiaccl.kmeans().is_empty());
+
+        // TODO: Verify _initialization_ produces identical centroids
+        // (this should all be derministic due to seeded RNG)
+
+        // TODO: Verify _clutering_ clusterse points idetncially
+
+        todo!("Finish this test")
     }
 }
