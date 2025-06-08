@@ -123,6 +123,8 @@ impl Layer {
             // upper bounds u(x) = min_c d(x,c).
             // """
             let ti_helpers: Vec<TIBounds> = self
+                // TODO: Double check we're not repeating the 'pick initial centers' work here twice.
+                // (e.g. if we already did that during the init() above)
                 .create_centroids_ti_accl()
                 .iter()
                 .map(|nearest_neighbor| TIBounds {
