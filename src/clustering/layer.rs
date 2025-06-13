@@ -28,12 +28,12 @@ pub struct Layer {
 // in self.points. See Elkan 2003 for more details.
 //
 // Used to accelerate k-means clustering via the paper's Triangle Inequality
-// (abrv. 'TI' here) based optimized algorithm.
+// (abrv. 'TriIneq' here) based optimized algorithm.
 //
 // NOTE: Includes some additional fields besides _just_ the bounds. (E.g. a
 // field to help lookup the currently assigned centroid for the point).
 #[derive(Debug, Clone)]
-struct TIBounds {
+struct TriIneqBounds {
     // The index into self.kmeans for the currently assigned centroid "nearest
     // neighbor" (i.e. c(x) in the paper) for this specifed point.
     assigned_centroid_idx: usize,
@@ -100,7 +100,7 @@ impl Layer {
             );
             let progress = crate::progress(t);
             for _ in 0..t {
-                let ref next_kmeans = self.compute_next_centroids();
+                let ref next_kmeans = self.compute_next_kmeans();
                 let ref mut mut_kmeans = self.kmeans();
                 *mut_kmeans = next_kmeans;
                 progress.inc(1);
@@ -121,12 +121,12 @@ impl Layer {
             // calculations. Each time d(x,c) is computed, set l(x,c) = d(x,c). Assign
             // upper bounds u(x) = min_c d(x,c).
             // """
-            let ti_helpers: Vec<TIBounds> = self
+            let ti_helpers: Vec<TriIneqBounds> = self
                 // TODO: Double check we're not repeating the 'pick initial centers' work here twice.
                 // (e.g. if we already did that during the init() above)
-                .create_centroids_ti_accl()
+                .create_centroids_tri_ineq()
                 .iter()
-                .map(|nearest_neighbor| TIBounds {
+                .map(|nearest_neighbor| TriIneqBounds {
                     // "c(x)"'s index in self.kmeans()
                     assigned_centroid_idx: nearest_neighbor.0,
                     // "l(x,c)"
@@ -172,7 +172,7 @@ impl Layer {
             for i in (0..t).progress() {
                 log::debug!("{:<32}{:<32}", "Performing training iteration # ", i);
                 let (ref next_kmeans, ref next_helpers) =
-                    self.compute_next_centroids_ti_accl(&ti_helpers);
+                    self.compute_next_kmeans_tri_ineq(&ti_helpers);
 
                 let mut_kmeans = &mut self.kmeans();
                 *mut_kmeans = next_kmeans;
@@ -250,7 +250,7 @@ impl Layer {
     /// calculates the next step of the kmeans iteration by
     /// determining K * N optimal transport calculations and
     /// taking the nearest neighbor
-    fn compute_next_centroids(&self) -> Vec<Histogram> /* K */ {
+    fn compute_next_kmeans(&self) -> Vec<Histogram> /* K */ {
         use rayon::iter::IntoParallelRefIterator;
         use rayon::iter::ParallelIterator;
         let k = self.street().k();
@@ -279,27 +279,23 @@ impl Layer {
     }
 
     #[cfg(feature = "native")]
-    /// WIP triangle-accelerated version of the 'next' function.
-    /// Keep separate unless and until we've proven that this is
-    /// going to actually be faster AND still correct
+    /// Triangle(tri)-Inequality(ineq) accelerated version of kmeans.
     ///
-    /// calculates the next step of the kmeans iteration by
-    /// determining up to K * N optimal transport calculations and
-    /// taking the nearest neighbor, using triangle inequalities
-    /// where possible to skip performing calculations
+    /// Calculates the next step of the kmeans iteration by efficiently
+    /// computing (a subset of) K * N optimal transport calculations and
+    /// taking the nearest neighbor, using triangle inequalities where
+    /// possible to skip performing unnecessary calculations.
     ///
-    /// TODO: This is currently entirely untested (aside from a
-    /// couple of manual runs). Before replacing the original code
-    /// we should first prove this works by running it against some
-    /// of the datasets in the paper (Elkan (2003)) and verifying
-    /// that we can replicate its results - as well as just
-    /// generally writing some unit tests.
-    fn compute_next_centroids_ti_accl(
+    /// In theory, the algorithm used here is guaranteed to produce the same
+    /// results as the 'unaccelerated' kmeans at every iteration given the
+    /// same set of inputs, while providing a massive speedup in most
+    /// real-world situations.
+    fn compute_next_kmeans_tri_ineq(
         &self,
-        ti_helpers: &[TIBounds],
+        ti_helpers: &[TriIneqBounds],
     ) -> (
-        Vec<Histogram>, /* K centroids */
-        Vec<TIBounds>,  /* Updated Triangle Inequality Helpers */
+        Vec<Histogram>,     /* K centroids */
+        Vec<TriIneqBounds>, /* Updated Triangle Inequality Helpers */
     ) {
         // TODO: panic if the length of ti_helpers doesn't match the length of
         // self.points
@@ -400,7 +396,7 @@ impl Layer {
             })
             .collect();
 
-        let mut step_3_working_points: HashMap<usize, (&Histogram, TIBounds)> = self
+        let mut step_3_working_points: HashMap<usize, (&Histogram, TriIneqBounds)> = self
             .points()
             .iter()
             .enumerate()
@@ -515,7 +511,7 @@ impl Layer {
         // Merge the updated helper values back with the original vector we got
         // at the start of the function (which has entries for *all* points, not
         // just the ones bieng updated in step 3).
-        let step_4_helpers: Vec<&TIBounds> = ti_helpers
+        let step_4_helpers: Vec<&TriIneqBounds> = ti_helpers
             .iter()
             .enumerate()
             .map(|(point_i, original_helper)| {
@@ -600,7 +596,7 @@ impl Layer {
             .map(|(old_center, new_center)| self.emd(old_center, new_center))
             .collect();
 
-        let step_5_helpers: Vec<TIBounds> = step_4_helpers
+        let step_5_helpers: Vec<TriIneqBounds> = step_4_helpers
             .into_par_iter()
             .cloned()
             .map(|mut helper| {
@@ -624,7 +620,7 @@ impl Layer {
         // """
         // TODO refactor probably can get away with continuing to borrow here.
         // And/or do using a .map() inside in a .par_iter() etc.
-        let mut step_6_helpers: Vec<TIBounds> = step_5_helpers;
+        let mut step_6_helpers: Vec<TriIneqBounds> = step_5_helpers;
         for helper in &mut step_6_helpers {
             // u(x) = u(x) + d(m(c(x)), c(x))
             // TODO: VERIFY THAT d(m(c(x)), c(x)) = d(c(x), m(c(x))).
@@ -656,7 +652,7 @@ impl Layer {
     /// using lemma 1 from Elkan (2003) to avoid redundant distance
     /// calculations. Allowing us to efficiently assign each point to
     /// its initial centroid.
-    fn create_centroids_ti_accl(&self) -> Vec<Neighbor> {
+    fn create_centroids_tri_ineq(&self) -> Vec<Neighbor> {
         use indicatif::ParallelProgressIterator;
         use rayon::iter::IntoParallelRefIterator;
         use rayon::iter::ParallelIterator;
@@ -866,15 +862,11 @@ mod tests {
     use crate::clustering::emd::EMD;
     use crate::Arbitrary;
 
-    // This test is deliberately NOT using the 'public API' / testing internal
-    // details of the implementation, which is not a typical "best practice".
-    // We explicitly make this tradeoff because the performance improvements
-    // of the triangle-inequality accelerated algorithm are so massive -
-    // meaning that it's worth it in order to prove as much as possible that
-    // its results are going to always match the unaccelerated algorithm at
-    // every step.
-    // TODO: Consider update the Layer code itself so we don't need to be
-    // reliant on so many private implementation details here.
+    // TODO: Update layer by remove &self from the inputs to both functions
+    // (and maybe extract them to another file) so that they can be
+    // used+tested without explicitly depending on anything poker-specific
+    // (i.e. 'Street', which currently is locking down our ability to ever
+    // call them for less centroids or points at a time)
     #[test]
     fn test_clustering_results_match() {
         // Create identical point sets for both layers to ensure deterministic comparison
@@ -892,7 +884,7 @@ mod tests {
             points
         };
         // Creating two identical Layer-s to verify clustering results will match
-        let mut layer_nk = Layer {
+        let layer_nk = Layer {
             street: Street::Flop,
             kmeans: Vec::default(),
             points: shared_points.clone(),
@@ -900,7 +892,7 @@ mod tests {
         };
 
         // Create second layer with identical configuration
-        let mut layer_tiaccl = Layer {
+        let layer_tri_ineq = Layer {
             street: Street::Flop,
             kmeans: Vec::default(),
             points: shared_points.clone(),
@@ -908,10 +900,10 @@ mod tests {
         };
 
         // Double check that the initial state is identical
-        assert_eq!(layer_nk.street(), layer_tiaccl.street());
-        assert_eq!(layer_nk.points().len(), layer_tiaccl.points().len());
+        assert_eq!(layer_nk.street(), layer_tri_ineq.street());
+        assert_eq!(layer_nk.points().len(), layer_tri_ineq.points().len());
         assert!(layer_nk.kmeans().is_empty());
-        assert!(layer_tiaccl.kmeans().is_empty());
+        assert!(layer_tri_ineq.kmeans().is_empty());
 
         // TODO: Verify _initialization_ produces identical centroids
         // (this should all be derministic due to seeded RNG)
