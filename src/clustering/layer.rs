@@ -90,7 +90,7 @@ impl Layer {
 
         // TODO: Replace this with something less hacky + controllable
         // programmatically from outside of this function.
-        let triangle_accelerate_todo_replaceme = false;
+        let triangle_accelerate_todo_replaceme = true;
         // let triangle_accelerate_todo_replaceme = true;
         if !triangle_accelerate_todo_replaceme {
             log::info!(
@@ -559,9 +559,11 @@ impl Layer {
                     .collect()
             })
             .collect();
-        // let mut loss = 0f32;
+
+        let mut loss = 0f32;
+        let perform_extra_loss_calculations = true;
         let mut new_centroids: Vec<Histogram> = vec![];
-        for points in points_assigned_per_center.iter() {
+        for (centroid_i, points) in points_assigned_per_center.iter().enumerate() {
             let mut mean_of_assigned_points = points[0].clone();
             if points.is_empty() {
                 // TODO: Figure out what to do for the centroid if there's no poitns assigned to it.
@@ -571,7 +573,27 @@ impl Layer {
                 mean_of_assigned_points.absorb(point);
             }
             let next_centroid = mean_of_assigned_points;
+
+            if perform_extra_loss_calculations {
+                log::debug!("Computing loss for centroid {}. This requires additional emd computations that otherwise would not be required.", centroid_i);
+                // By definition resulting center has shifted from the 0th
+                // point we started with, so we can't skip it here when
+                // computing overall loss.
+                for point in points.iter() {
+                    let distance_point_to_next_centroid = self.emd(&next_centroid, &point);
+                    loss += distance_point_to_next_centroid * distance_point_to_next_centroid;
+                }
+                log::debug!("Done computing loss for centroid.");
+            }
+
             new_centroids.push(next_centroid);
+        }
+        if perform_extra_loss_calculations {
+            log::debug!(
+                "{:<32}{:<32}",
+                "abstraction cluster RMS error",
+                (loss / self.points().len() as f32).sqrt()
+            );
         }
 
         log::debug!("{:<32}", " - Elkan Step 5");
