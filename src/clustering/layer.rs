@@ -562,6 +562,20 @@ impl Layer {
 
         let mut loss = 0f32;
         let perform_extra_loss_calculations = true;
+
+        if perform_extra_loss_calculations {
+            log::debug!(
+                "WARNING: About to perform {} otherwise-unnecessary emd
+                 computations to calculate RMS error for the new centroids,
+                 **solely for logging purposes** (i.e. could be removed
+                 without affecting the actual results whatsoever). Consider
+                 disabling if Elkan Step 4 is taking longer than expected,
+                 and/of if performing any benchmarking for the algorithm
+                 overall!",
+                self.points.len()
+            );
+        }
+
         let mut new_centroids: Vec<Histogram> = vec![];
         for points in points_assigned_per_center.iter() {
             let mut mean_of_assigned_points = points[0].clone();
@@ -587,14 +601,6 @@ impl Layer {
             new_centroids.push(next_centroid);
         }
         if perform_extra_loss_calculations {
-            log::debug!(
-                "WARNING: Performed {} otherwise-unnecessary distance
-                 computations to calculate RMS error for the new centroids,
-                 solely for logging purposes. Consider disabling if Elkan
-                 (2003) step 4 is taking longer than expected!",
-                self.points.len()
-            );
-
             log::debug!(
                 "{:<32}{:<32}",
                 "abstraction cluster RMS error",
