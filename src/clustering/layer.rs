@@ -563,7 +563,7 @@ impl Layer {
         let mut loss = 0f32;
         let perform_extra_loss_calculations = true;
         let mut new_centroids: Vec<Histogram> = vec![];
-        for (centroid_i, points) in points_assigned_per_center.iter().enumerate() {
+        for points in points_assigned_per_center.iter() {
             let mut mean_of_assigned_points = points[0].clone();
             if points.is_empty() {
                 // TODO: Figure out what to do for the centroid if there's no poitns assigned to it.
@@ -575,7 +575,6 @@ impl Layer {
             let next_centroid = mean_of_assigned_points;
 
             if perform_extra_loss_calculations {
-                log::debug!("Computing loss for centroid {}. This requires additional emd computations that otherwise would not be required.", centroid_i);
                 // By definition resulting center has shifted from the 0th
                 // point we started with, so we can't skip it here when
                 // computing overall loss.
@@ -583,12 +582,19 @@ impl Layer {
                     let distance_point_to_next_centroid = self.emd(&next_centroid, &point);
                     loss += distance_point_to_next_centroid * distance_point_to_next_centroid;
                 }
-                log::debug!("Done computing loss for centroid.");
             }
 
             new_centroids.push(next_centroid);
         }
         if perform_extra_loss_calculations {
+            log::debug!(
+                "WARNING: Performed {} otherwise-unnecessary distance
+                 computations to calculate RMS error for the new centroids,
+                 solely for logging purposes. Consider disabling if Elkan
+                 (2003) step 4 is taking longer than expected!",
+                self.points.len()
+            );
+
             log::debug!(
                 "{:<32}{:<32}",
                 "abstraction cluster RMS error",
