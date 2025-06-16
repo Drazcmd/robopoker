@@ -573,6 +573,11 @@ impl Layer {
         let mut rms_calculation_seconds = 0;
 
         let mut new_centroids: Vec<Histogram> = vec![];
+
+        // Note: we could optionally parallelize this via rayon if we were to
+        // restructure it a bit. In practice though, so long as
+        // `perform_extra_loss_calculations` is false this is so fast that it's
+        // not worth doing.
         for points in points_assigned_per_center.iter() {
             let mut mean_of_assigned_points = points[0].clone();
             if points.is_empty() {
