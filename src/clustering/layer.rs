@@ -14,6 +14,7 @@ use rand::distributions::WeightedIndex;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::time::SystemTime;
 
 type Neighbor = (usize, f32);
 
@@ -560,9 +561,7 @@ impl Layer {
             })
             .collect();
 
-        let mut loss = 0f32;
         let perform_extra_loss_calculations = true;
-
         if perform_extra_loss_calculations {
             log::debug!(
                 "WARNING: About to perform {} otherwise-unnecessary emd
@@ -575,6 +574,8 @@ impl Layer {
                 self.points.len()
             );
         }
+        let mut loss = 0f32;
+        let mut rms_calculation_seconds = 0;
 
         let mut new_centroids: Vec<Histogram> = vec![];
         for points in points_assigned_per_center.iter() {
@@ -583,18 +584,31 @@ impl Layer {
                 // TODO: Figure out what to do for the centroid if there's no poitns assigned to it.
                 log::error!("No points assigned to current centroid. This is currently an edge case we are unable to resolve; for more details see https://github.com/krukah/robopoker/issues/34#issuecomment-2860641178")
             }
+
             for point in points.iter().skip(1) {
                 mean_of_assigned_points.absorb(point);
             }
             let next_centroid = mean_of_assigned_points;
 
             if perform_extra_loss_calculations {
+                // As mentioned above, this can be expensive; we add extra tracking
+                // here to allow the user to more easily determine if it's worth
+                // disabling or not.
+                let now = SystemTime::now();
                 // By definition resulting center has shifted from the 0th
-                // point we started with, so we can't skip it here when
-                // computing overall loss.
+                // point we started with, so we shouldn't skip(1) here when
+                // computing overall loss (unlike above)
                 for point in points.iter() {
                     let distance_point_to_next_centroid = self.emd(&next_centroid, &point);
                     loss += distance_point_to_next_centroid * distance_point_to_next_centroid;
+                }
+                match now.elapsed() {
+                    Ok(elapsed) => {
+                        rms_calculation_seconds += elapsed.as_secs();
+                    }
+                    Err(e) => {
+                        log::error!("Error tracking elapsed time for RMS calculations: {e:?}");
+                    }
                 }
             }
 
@@ -605,6 +619,12 @@ impl Layer {
                 "{:<32}{:<32}",
                 "abstraction cluster RMS error",
                 (loss / self.points().len() as f32).sqrt()
+            );
+            log::debug!(
+                "(Calculating RMS error required spending an extra
+                 {} seconds performing otherwise-unnecessary distance
+                 calculations)",
+                rms_calculation_seconds
             );
         }
 
