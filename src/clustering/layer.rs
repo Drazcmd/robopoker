@@ -565,7 +565,7 @@ impl Layer {
         if perform_extra_loss_calculations {
             log::debug!(
                 "Performing {} otherwise-unnecessary emd computations to
-                 calculate RMS error .",
+                 calculate RMS error. This may slow down step 4!",
                 self.points.len()
             );
         }
