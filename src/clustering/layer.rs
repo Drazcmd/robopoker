@@ -564,13 +564,8 @@ impl Layer {
         let perform_extra_loss_calculations = true;
         if perform_extra_loss_calculations {
             log::debug!(
-                "WARNING: About to perform {} otherwise-unnecessary emd
-                 computations to calculate RMS error for the new centroids,
-                 **solely for logging purposes** (i.e. could be removed
-                 without affecting the actual results whatsoever). Consider
-                 disabling if Elkan Step 4 is taking longer than expected,
-                 and/of if performing any benchmarking for the algorithm
-                 overall!",
+                "Performing {} otherwise-unnecessary emd computations to
+                 calculate RMS error .",
                 self.points.len()
             );
         }
@@ -620,12 +615,18 @@ impl Layer {
                 "abstraction cluster RMS error",
                 (loss / self.points().len() as f32).sqrt()
             );
-            log::debug!(
-                "(Calculating RMS error required spending an extra
-                 {} seconds performing otherwise-unnecessary distance
-                 calculations)",
-                rms_calculation_seconds
-            );
+            // Arbitrarily setting a threshold for when it 'affects' performance;
+            // anything under is clearly so small that the reminder message isn't
+            // needed. (Arguably we could set this much higher too.)
+            if rms_calculation_seconds > 2 {
+                log::warn!(
+                    "Calculating RMS error for debug logs required an extra {}
+                    seconds (to perform {} otherwise-unnecessary distance
+                    computations). Consider disabling to improve performance.",
+                    rms_calculation_seconds,
+                    self.points().len()
+                );
+            }
         }
 
         log::debug!("{:<32}", " - Elkan Step 5");
