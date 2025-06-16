@@ -578,7 +578,10 @@ impl Layer {
         // restructure it a bit. In practice though, so long as
         // `perform_extra_loss_calculations` is false this is so fast that it's
         // not worth doing.
-        for points in points_assigned_per_center.iter() {
+
+        log::warn!("WIP: CHECKING WHICH CENTROID TO COMPARE TO (old vs new)");
+
+        for (centroid_i, points) in points_assigned_per_center.iter().enumerate() {
             let mut mean_of_assigned_points = points[0].clone();
             if points.is_empty() {
                 // TODO: Figure out what to do for the centroid if there's no poitns assigned to it.
@@ -591,16 +594,16 @@ impl Layer {
             let next_centroid = mean_of_assigned_points;
 
             if perform_extra_loss_calculations {
+                // NOTE: Calculating the error with the OLD center (to ensure
+                // that this is consistent with the unaccelerated algorithm).
+                let old_centroid = &(self.kmeans()[centroid_i]);
                 // As mentioned above, this can be expensive; we add extra tracking
                 // here to allow the user to more easily determine if it's worth
                 // disabling or not.
                 let now = SystemTime::now();
-                // By definition resulting center has shifted from the 0th
-                // point we started with, so we shouldn't skip(1) here when
-                // computing overall loss (unlike above)
                 for point in points.iter() {
-                    let distance_point_to_next_centroid = self.emd(&next_centroid, &point);
-                    loss += distance_point_to_next_centroid * distance_point_to_next_centroid;
+                    let distance_point_to_prior_centroid = self.emd(&old_centroid, &point);
+                    loss += distance_point_to_prior_centroid * distance_point_to_prior_centroid;
                 }
                 match now.elapsed() {
                     Ok(elapsed) => {
