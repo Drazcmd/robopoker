@@ -574,13 +574,9 @@ impl Layer {
 
         let mut new_centroids: Vec<Histogram> = vec![];
 
-        // Note: we could optionally parallelize this via rayon if we were to
-        // restructure it a bit. In practice though, so long as
-        // `perform_extra_loss_calculations` is false this is so fast that it's
+        // Note: we could optionally parallelize this. In practice though, so long
+        // as `perform_extra_loss_calculations` is false this is so fast that it's
         // not worth doing.
-
-        log::warn!("WIP: CHECKING WHICH CENTROID TO COMPARE TO (old vs new)");
-
         for (centroid_i, points) in points_assigned_per_center.iter().enumerate() {
             let mut mean_of_assigned_points = points[0].clone();
             if points.is_empty() {
