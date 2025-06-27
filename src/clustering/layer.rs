@@ -101,6 +101,10 @@ impl Layer {
             );
             let progress = crate::progress(t);
             for _ in 0..t {
+                // WARNING: If modifying this code, MAKE SURE THAT THE RMS VALUES ACTUALLY
+                // DECREASE ON EACH ITERATION. (We've hit a bug in the past trying to fix this
+                // where the code looked fine at casual glance, but in practice it wasn't
+                // actually making progress past the first iteration.)
                 let ref mut next = self.compute_next_kmeans();
                 let ref mut last = self.kmeans;
                 std::mem::swap(next, last);
@@ -122,7 +126,7 @@ impl Layer {
             // calculations. Each time d(x,c) is computed, set l(x,c) = d(x,c). Assign
             // upper bounds u(x) = min_c d(x,c).
             // """
-            let ti_helpers: Vec<TriIneqBounds> = self
+            let mut ti_helpers: Vec<TriIneqBounds> = self
                 // TODO: Double check we're not repeating the 'pick initial centers' work here twice.
                 // (e.g. if we already did that during the init() above)
                 .create_centroids_tri_ineq()
@@ -172,14 +176,14 @@ impl Layer {
             // TODO: Add styling to progress bar
             for i in (0..t).progress() {
                 log::debug!("{:<32}{:<32}", "Performing training iteration # ", i);
-                let (ref next_kmeans, ref next_helpers) =
+                let (ref mut next_kmeans, ref mut next_helpers) =
                     self.compute_next_kmeans_tri_ineq(&ti_helpers);
 
-                let mut_kmeans = &mut self.kmeans();
-                *mut_kmeans = next_kmeans;
+                let ref mut current_kmeans = self.kmeans;
+                std::mem::swap(current_kmeans, next_kmeans);
 
-                let mut_helpers = &mut (&ti_helpers);
-                *mut_helpers = next_helpers
+                let ref mut current_helpers = ti_helpers;
+                std::mem::swap(current_helpers, next_helpers)
             }
         }
         self
