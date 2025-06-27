@@ -78,9 +78,9 @@ impl Layer {
     #[cfg(feature = "native")]
     /// primary clustering algorithm loop
     fn cluster(mut self) -> Self {
-        log::info!("{:<32}{:<32}", "initializing  kmeans", self.street());
-        let init = &mut self.init(); // note: may take a little bit to run!
-        let last = &mut self.kmeans;
+        log::info!("{:<32}{:<32}", "initialize  kmeans", self.street());
+        let ref mut init = self.init();
+        let ref mut last = self.kmeans;
         std::mem::swap(init, last);
 
         let k = self.street().k();
@@ -101,9 +101,9 @@ impl Layer {
             );
             let progress = crate::progress(t);
             for _ in 0..t {
-                let ref next_kmeans = self.compute_next_kmeans();
-                let ref mut mut_kmeans = self.kmeans();
-                *mut_kmeans = next_kmeans;
+                let ref mut next = self.compute_next_kmeans();
+                let ref mut last = self.kmeans;
+                std::mem::swap(next, last);
                 progress.inc(1);
             }
             progress.finish();
