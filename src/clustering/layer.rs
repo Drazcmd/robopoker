@@ -592,6 +592,7 @@ impl Layer {
             }
             let next_centroid = mean_of_assigned_points;
 
+            // TODO ADD ASSERTS THAT RMS IS DECREASING HERE AND IN THE OTHER SPOTS
             if cfg!(feature = "kmeans-compute-nonfree-rms") {
                 // NOTE: Calculating the error with the OLD center (to ensure
                 // that this is consistent with the unaccelerated algorithm).
